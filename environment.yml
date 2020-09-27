@@ -1,0 +1,12 @@
+name: computer-vision-models
+dependencies:
+  - python=3.7
+  - tensorflow-gpu==2.2.0
+  - pytest
+  - matplotlib
+  - pip
+  - pip:
+    - mlpipe-trainer
+    - opencv-python
+    - nuscenes-devkit
+    - tensorflow-model-optimization
