@@ -4,9 +4,12 @@ dependencies:
   - tensorflow-gpu==2.2.0
   - pytest
   - matplotlib
+  - redis
   - pip
   - pip:
-    - mlpipe-trainer
+    - numpy
+    - pymongo
     - opencv-python
     - nuscenes-devkit
     - tensorflow-model-optimization
+    - redis # to get the python interface for redis
