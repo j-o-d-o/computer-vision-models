@@ -5,7 +5,7 @@ import numpy as np
 import argparse
 from tqdm import tqdm
 from pymongo import MongoClient
-from data.od_spec import Object, Entry, OD_CLASS_MAPPING
+from od_spec import Object, Entry, OD_CLASS_MAPPING
 
 # Mapping kitti classes to od_spec classes
 CLASS_MAP = {"Pedestrian": "ped"}

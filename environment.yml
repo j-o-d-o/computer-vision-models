@@ -7,6 +7,7 @@ dependencies:
   - redis
   - pip
   - pip:
+    - tqdm
     - numpy
     - pymongo
     - opencv-python
