@@ -1,6 +1,5 @@
 __pycache__
 *.idea
 *.log
-*.pyc
-*.vscode
+*.pycS
 config.ini
