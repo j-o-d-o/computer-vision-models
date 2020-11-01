@@ -9,9 +9,9 @@ from models.semseg.model import create_model
 
 print("Using Tensorflow Version: " + tf.__version__)
 gpus = tf.config.experimental.list_physical_devices('GPU')
-# assert len(gpus) > 0, "Not enough GPU hardware devices available"
-# tf.config.experimental.set_memory_growth(gpus[0], True)
-# tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=5000)])
+assert len(gpus) > 0, "Not enough GPU hardware devices available"
+tf.config.experimental.set_memory_growth(gpus[0], True)
+tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=5000)])
 
 
 if __name__ == "__main__":
