@@ -2,5 +2,5 @@ __pycache__
 *.idea
 *.log
 *.pycS
-.vscode/settings.json
+.vscode
 config.ini
