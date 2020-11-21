@@ -3,4 +3,5 @@ __pycache__
 *.log
 *.pycS
 .vscode
+.pytest_cache
 config.ini

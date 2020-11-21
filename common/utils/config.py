@@ -14,6 +14,7 @@ class Config:
         :param config_path: path to the config.ini file
         """
         cp = configparser.ConfigParser()
+        cp.read(config_path)
         Config._config_parser = cp
 
     @staticmethod

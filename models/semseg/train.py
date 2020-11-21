@@ -18,7 +18,7 @@ if __name__ == "__main__":
     Logger.init()
     Logger.remove_file_logger()
 
-    Config.add_config('./../../config.ini')
+    Config.add_config('./config.ini')
     collection_details = ("local_mongodb", "semseg", "comma10k")
 
     # Create Data Generators
