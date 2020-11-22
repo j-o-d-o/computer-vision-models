@@ -1,3 +1,9 @@
+import os
+path_stuff = os.environ['PYTHONPATH']
+print(path_stuff)
+cwd = os.getcwd()
+print(cwd)
+
 import tensorflow as tf
 from tensorflow.keras import optimizers, models, losses
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
@@ -56,7 +62,7 @@ if __name__ == "__main__":
         model.summary()
 
     # Train Model
-    callbacks = [(SaveToStorage("/home/jodo/trained_models", "semseg", model, False))]
+    callbacks = [(SaveToStorage("./trained_models", "semseg", model, False))]
     model.fit_generator(
         generator=train_gen,
         validation_data=val_gen,

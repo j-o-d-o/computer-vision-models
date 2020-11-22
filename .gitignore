@@ -5,3 +5,4 @@ __pycache__
 .vscode
 .pytest_cache
 config.ini
+trained_models

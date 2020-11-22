@@ -8,7 +8,7 @@ Data specification for semseg and object detection. All data from the different 
 fit these specs. These enables to train the same model from different data sources without having to write specific processors for
 each data source.</br>
 While the semseg spec is basically the comma10k label spec, the od spec is close to the kitti label spec with minor additions (3D bounding box)
-and minor changes (axis of coordinate system to autosar, different ignore are approach)
+and minor changes (axis of coordinate system to autosar, different ignore area approach)
 
 ### Comma10k - Semseg
 Semantic segmentation data from comma.ai (https://github.com/commaai/comma10k). Clone the repository to your machine and run

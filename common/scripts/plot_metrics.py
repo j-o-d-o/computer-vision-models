@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import json
+import argparse
 
 
 def plot_metric(data, name):
@@ -45,6 +46,10 @@ def read_data_from_json(path):
 
 
 if __name__ == "__main__":
-  plot_data = read_data_from_json("/home/jodo/trained_models/semseg_16-08-2020-13-16-55/metrics.json")
+  parser = argparse.ArgumentParser(description="Plot metrics from training")
+  parser.add_argument("--path", type=str, help="Path of the metric file e.g. ./trained_models/semseg_16-08-2020-13-16-55/metric.json")
+  args = parser.parse_args()
+
+  plot_data = read_data_from_json(args.path)
   for metric in plot_data:
     plot_metric(plot_data[metric], metric)

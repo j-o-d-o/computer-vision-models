@@ -15,7 +15,7 @@ class TestProcessors:
         Logger.remove_file_logger()
 
         # get one entry from the database
-        Config.add_config('../config.ini')
+        Config.add_config('./config.ini')
         self.collection_details = ("local_mongodb", "semseg", "comma10k")
 
         # Create Data Generators

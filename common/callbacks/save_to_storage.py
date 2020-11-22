@@ -28,6 +28,7 @@ class SaveToStorage(FillTraining):
     self._storage_path = storage_path + "/" + name + "_" + datetime.now().strftime("%d-%m-%Y-%H-%M-%S")
 
     if not os.path.exists(self._storage_path):
+      print("Storage folder does not exist yet, creating: " + self._storage_path)
       os.makedirs(self._storage_path)
 
     self._save_initial_weights = save_initial_weights
