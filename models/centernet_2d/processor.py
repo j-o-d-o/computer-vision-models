@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import math
 from dataclasses import dataclass
 from tensorflow.keras.utils import to_categorical
 from common.processors import IPreProcessor
@@ -19,19 +20,31 @@ class ProcessImages(IPreProcessor):
         # Add ground_truth mask/heatmap
         mask_width = Params.INPUT_WIDTH // Params.R
         mask_height = Params.INPUT_HEIGHT // Params.R
-        # TODO: Add offset_x, offset_y, ignore_flag
-        mask_channels = len(OD_CLASS_MAPPING) + 2 # nb_classes + width + height
+        nb_classes = len(OD_CLASS_MAPPING)
+        mask_channels = nb_classes + 2 # nb_classes + width + height
         ground_truth = np.zeros((mask_height, mask_width, mask_channels))
         # Add objects
         for obj in raw_data["objects"]:
-            idx = OD_CLASS_IDX[obj["obj_class"]]
             scaled_box2d = (np.asarray(obj["box2d"]) * roi.scale) // float(Params.R)
             width = int(scaled_box2d[2])
             height = int(scaled_box2d[3])
             center_x = int(scaled_box2d[0] + (width // 2.0))
             center_y = int(scaled_box2d[1] + (height // 2.0))
-            ground_truth[center_y][center_x][idx] = 1.0
-            ground_truth[center_y][center_x][idx + 1] = width
-            ground_truth[center_y][center_x][idx + 1] = height
+            # Fill width and height at keypoint
+            ground_truth[center_y][center_x][nb_classes] = width
+            ground_truth[center_y][center_x][nb_classes + 1] = height
+            # TODO: Add offset_x, offset_y, ignore_flag
+            # Fill an area that is half the size of the object width and height with a gausian distribution for lower loss in that area
+            cls_idx = OD_CLASS_IDX[obj["obj_class"]]
+            min_x = max(0, center_x - (width // 4))
+            max_x = min(mask_width, center_x + (width // 4))
+            min_y = max(0, center_y - (height // 4))
+            max_y = min(mask_height, center_y + (height // 4))
+            for x in range(min_x, max_x):
+                for y in range(min_y, max_y):
+                    stdDevWidth = width * 0.05
+                    stdDevHeight = height * 0.05
+                    score = math.exp(-((math.pow(x - center_x, 2) + math.pow(y - center_y, 2)) / (math.pow(stdDevHeight, 2) + math.pow(stdDevWidth, 2))))
+                    ground_truth[y][x][cls_idx] = max(score, ground_truth[y][x][cls_idx])
 
         return raw_data, input_data, ground_truth, piped_params

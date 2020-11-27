@@ -63,3 +63,28 @@ def to_hex(array):
     """
     img = np.asarray(img, dtype='uint32')
     return (img[:, :, 0] << 16) + (img[:, :, 1] << 8) + img[:, :, 2]
+
+def to_3channel(raw_mask_output, class_mapping):
+    """
+    Convert a mask with one hot encoded class mapping to a rgb coded colour image
+    :param raw_mask_output: 2d img as mask outpu with channels > number of classes, also classes are expected to be first in the channels
+    :param class_mapping: A ordered dict of class with key: string and value: (r, g, b)
+    :return: 2d rgba image that encodes the class scores for each pixel
+    """
+    array = np.zeros((raw_mask_output.shape[0] * raw_mask_output.shape[1] * 3), dtype='uint8')
+    flattened_arr = raw_mask_output.reshape((-1, raw_mask_output.shape[2]))
+    for i, one_hot_encoded_arr in enumerate(flattened_arr):
+        # find index of highest value in the one_hot_encoded_arr
+        nb_classes = len(class_mapping)
+        cls_idx = np.argmax(one_hot_encoded_arr[:nb_classes])
+        max_val = one_hot_encoded_arr[cls_idx]
+        assert(max_val >= 0.0 and max_val <= 1.0)
+        # convert index to hex value
+        cls_colour = list(class_mapping.items())[int(round(cls_idx))][1]
+        # fill new array with BGR values
+        new_i = i * 3
+        array[new_i] = cls_colour[0] * max_val
+        array[new_i + 1] = cls_colour[1] * max_val
+        array[new_i + 2] = cls_colour[2] * max_val
+
+    return array.reshape((raw_mask_output.shape[0], raw_mask_output.shape[1], 3))
