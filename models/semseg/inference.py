@@ -4,29 +4,12 @@ import os
 import cv2
 import argparse
 from pymongo import MongoClient
+from common.utils import to_3channel, resize_img
 from data.semseg_spec import SEMSEG_CLASS_MAPPING
-from models.semseg.processor import ProcessImages
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 assert len(gpus) > 0, "Not enough GPU hardware devices available"
 tf.config.experimental.set_memory_growth(gpus[0], True)
-
-
-def to_3channel(raw_semseg_img):
-    array = np.zeros((raw_semseg_img.shape[0] * raw_semseg_img.shape[1] * 3), dtype='uint8')
-    flattened_arr = raw_semseg_img.reshape((-1, len(SEMSEG_CLASS_MAPPING)))
-    for i, one_hot_encoded_arr in enumerate(flattened_arr):
-        # find index of highest value in the one_hot_encoded_arr
-        cls_idx = np.argmax(one_hot_encoded_arr)
-        # convert index to hex value
-        hex_val = int(list(SEMSEG_CLASS_MAPPING.items())[int(round(cls_idx))][1])
-        # fill new array with BGR values
-        new_i = i * 3
-        array[new_i] = (hex_val & 0xFF0000) >> 16
-        array[new_i + 1] = (hex_val & 0x00FF00) >> 8
-        array[new_i + 2] = (hex_val & 0x0000FF)
-
-    return array.reshape((raw_semseg_img.shape[0], raw_semseg_img.shape[1], 3))
 
 
 if __name__ == "__main__":
@@ -36,7 +19,7 @@ if __name__ == "__main__":
     parser.add_argument("--collection", type=str, default="comma10k", help="MongoDB collection")
     parser.add_argument("--img_width", type=int, default=320, help="Width of image, must be model input")
     parser.add_argument("--img_height", type=int, default=130, help="Width of image, must be model input")
-    parser.add_argument("--offset_top", type=int, default=218, help="Offset from the top that should be cut to get to desired size and aspect ratio.")
+    parser.add_argument("--offset_bottom", type=int, default=-200, help="Offset from the bottom in orignal image scale")
     parser.add_argument("--model_path", type=str, help="Path to a tensorflow model folder")
     args = parser.parse_args()
 
@@ -50,12 +33,12 @@ if __name__ == "__main__":
     for doc in documents:
         decoded_img = np.frombuffer(doc["img"], np.uint8)
         img = cv2.imdecode(decoded_img, cv2.IMREAD_COLOR)
-        img, roi = ProcessImages.resize_img(img, args.img_width, args.img_height, args.offset_top)
+        img, roi = resize_img(img, args.img_width, args.img_height, args.offset_bottom)
         img = np.array([img])
 
         raw_result = model.predict(img)
         semseg_img = raw_result[0]
-        semseg_img = to_3channel(semseg_img)  # convert hex to 3 channel representation
+        semseg_img = to_3channel(semseg_img, SEMSEG_CLASS_MAPPING)
 
         cv2.imshow("Input Image", img[0])
         cv2.imshow("Semseg Image", semseg_img)

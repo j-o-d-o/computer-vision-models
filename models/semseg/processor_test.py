@@ -1,9 +1,9 @@
 import cv2
 import numpy as np
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
-from common.utils import Config, Logger
+from common.utils import Config, Logger, to_3channel
 from models.semseg.processor import ProcessImages
-from models.semseg.inference import to_3channel
+from data.semseg_spec import SEMSEG_CLASS_MAPPING
 
 
 class TestProcessors:
@@ -37,7 +37,7 @@ class TestProcessors:
 
         for i, input_data in enumerate(batch_x):
             assert len(input_data) > 0
-            mask_img = to_3channel(batch_y[i])
+            mask_img = to_3channel(batch_y[i], SEMSEG_CLASS_MAPPING)
             cv2.imshow("img", input_data.astype(np.uint8))
             cv2.imshow("mask", mask_img)
             cv2.waitKey(0)

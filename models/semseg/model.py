@@ -50,7 +50,7 @@ def upsample_bock(inputs, concat_layer, filters: int, kernel=(3, 3), final_layer
 
 
 def create_model():
-    inputs = Input(shape=(Params.IMG_HEIGHT, Params.IMG_WIDTH, Params.IMG_CHANNELS))
+    inputs = Input(shape=(Params.INPUT_HEIGHT, Params.INPUT_WIDTH, Params.INTPUT_CHANNELS))
 
     pool1, conv_down_1 = downsample_block(inputs, 16, kernel=(5, 5))
     pool2, conv_down_2 = downsample_block(pool1, 16)

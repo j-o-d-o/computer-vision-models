@@ -1,9 +1,3 @@
-import os
-path_stuff = os.environ['PYTHONPATH']
-print(path_stuff)
-cwd = os.getcwd()
-print(cwd)
-
 import tensorflow as tf
 from tensorflow.keras import optimizers, models, losses
 from common.data_reader.mongodb import load_ids, MongoDBGenerator

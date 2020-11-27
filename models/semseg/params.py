@@ -7,13 +7,12 @@ class Params:
     ########################
     ##### INPUT CONFIG #####
     ########################
-    IMG_WIDTH = 320
-    IMG_HEIGHT = 130
-    IMG_CHANNELS = 3
-    OFFSET_TOP = 218 # in pixel of original size, set to None if everything should be cut from top to get to goal aspect ratio
-
-    MASK_WIDTH = IMG_WIDTH
-    MASK_HEIGHT = IMG_HEIGHT
+    OFFSET_BOTTOM = -200 # relative to org img size
+    INPUT_WIDTH = 320
+    INPUT_HEIGHT = 130
+    INTPUT_CHANNELS = 3
+    MASK_WIDTH = INPUT_WIDTH
+    MASK_HEIGHT = INPUT_HEIGHT
 
     ########################
     ### TRAIN PARAMETERS ###

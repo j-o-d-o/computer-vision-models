@@ -55,15 +55,6 @@ def resize_img(img: np.ndarray, goal_width: int, goal_height: int, offset_bottom
     img = cv2.resize(img, (goal_width, goal_height), interpolation=interpolation)
     return img, roi
 
-def to_hex(array):
-    """
-    Convert 3 channel representation to single hex channel
-    :param array: 2d image with rgb channels
-    :return: 2d image with single hex value
-    """
-    img = np.asarray(img, dtype='uint32')
-    return (img[:, :, 0] << 16) + (img[:, :, 1] << 8) + img[:, :, 2]
-
 def to_3channel(raw_mask_output, class_mapping):
     """
     Convert a mask with one hot encoded class mapping to a rgb coded colour image
@@ -78,7 +69,8 @@ def to_3channel(raw_mask_output, class_mapping):
         nb_classes = len(class_mapping)
         cls_idx = np.argmax(one_hot_encoded_arr[:nb_classes])
         max_val = one_hot_encoded_arr[cls_idx]
-        assert(max_val >= 0.0 and max_val <= 1.0)
+        # assert(max_val >= 0.0 and max_val <= 1.0)
+        max_val = max(1.0, min(0.0, max_val))
         # convert index to hex value
         cls_colour = list(class_mapping.items())[int(round(cls_idx))][1]
         # fill new array with BGR values

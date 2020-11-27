@@ -5,6 +5,8 @@ import numpy as np
 from collections import OrderedDict
 from models.semseg.processor import ProcessImages
 
+# Not working right now...
+
 gpus = tf.config.experimental.list_physical_devices('GPU')
 assert len(gpus) > 0, "Not enough GPU hardware devices available"
 tf.config.experimental.set_memory_growth(gpus[0], True)

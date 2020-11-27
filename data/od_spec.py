@@ -2,13 +2,14 @@ from dataclasses import dataclass
 from typing import List
 from collections import OrderedDict
 
+# Colours are in BGR!
 OD_CLASS_MAPPING = OrderedDict([
-  ("car", (201, 85, 83)), # red
-  ("truck", (209, 189, 90)), # yellow
-  ("van", (90, 209, 177)), # turquoise
-  ("motorbike", (52, 90, 194)), # blue
-  ("cyclist", (136, 189, 68)), # green
-  ("ped", (230, 76, 217)), # pink
+  ("car", (96, 96, 192)), # red
+  ("truck", (96, 192, 192)), # yellow
+  ("van", (128, 192, 96)), # turquoise
+  ("motorbike", (194, 96, 64)), # blue
+  ("cyclist", (64, 194, 128)), # green
+  ("ped", (196, 64, 196)), # pink
 ])
 OD_CLASS_IDX = {k: pos for pos, k in enumerate(OD_CLASS_MAPPING)}
 
