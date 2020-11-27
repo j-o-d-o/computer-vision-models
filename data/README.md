@@ -21,10 +21,6 @@ You will need:
 - Download training labels of object data set (5 MB) (data_object_label_2.zip)
 - Download camera calibration matrices of object data set (16 MB) (data_object_calib.zip)
 
-  parser.add_argument("--image_path", type=str, help="Path to kitti training images e.g. /path/to/kitti/data_object_image/training/image_2")
-  parser.add_argument("--label_path", type=str, help="Path to kitti labels e.g. /path/to/kitti/data_object_label/training/label_2")
-  parser.add_argument("--calib_path", type=str, help="Path to kitti calibration data e.g. /path/to/kitti/data_object_calib/training/calib")
-  
 ```bash
 # Run script to convert Kitti data to od_spec and upload to MongoDB
 kitti_3d.py --image_path /path/to/data_object_image_2/training/image_2 

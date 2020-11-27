@@ -10,7 +10,7 @@ OD_CLASS_MAPPING = OrderedDict([
   ("cyclist", (136, 189, 68)), # green
   ("ped", (230, 76, 217)), # pink
 ])
-
+OD_CLASS_IDX = {k: pos for pos, k in enumerate(OD_CLASS_MAPPING)}
 
 @dataclass
 class Object:
