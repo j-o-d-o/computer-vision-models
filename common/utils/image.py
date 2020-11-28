@@ -6,7 +6,10 @@ from data.od_spec import OD_CLASS_MAPPING
 
 @dataclass
 class Roi:
-    # offsets are pre scaling!
+    """
+    Dataclass for a region of intereset that is used to pass info about a cropped and resized image part.
+    Note that the offsets are pre-scaling
+    """
     offset_top: int = 0
     offset_bottom: int = 0
     offset_left: int = 0
@@ -70,7 +73,7 @@ def to_3channel(raw_mask_output, class_mapping):
         cls_idx = np.argmax(one_hot_encoded_arr[:nb_classes])
         max_val = one_hot_encoded_arr[cls_idx]
         # assert(max_val >= 0.0 and max_val <= 1.0)
-        max_val = max(1.0, min(0.0, max_val))
+        max_val = max(0.0, min(1.0, max_val))
         # convert index to hex value
         cls_colour = list(class_mapping.items())[int(round(cls_idx))][1]
         # fill new array with BGR values

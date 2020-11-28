@@ -16,10 +16,8 @@ class Params:
     ########################
     R = 2 # Scale from input image to output heat map
     FOCAL_LOSS_ALPHA = 2
-    FOCAL_LOSS_BETA = 2
-    LOSS_KEYPOINT_WEIGHT = 1
-    LOSS_OFFSET_WEIGHT = 1
-    LOSS_BOX_SIZE_WEIGHT = 5
+    FOCAL_LOSS_BETA = 4
+    LOSS_SIZE_WEIGHT = 0.4
 
     ########################
     ### TRAIN PARAMETERS ###

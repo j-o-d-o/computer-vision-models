@@ -1,11 +1,7 @@
 import tensorflow as tf
-from tensorflow.keras import optimizers, models, losses
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
-from common.callbacks import SaveToStorage
 from common.utils import Logger, Config
-from models.semseg.processor import ProcessImages
-from models.semseg.params import Params
-from models.semseg.model import create_model
+from models.centernet_2d import ProcessImages, Params, Centernet2DLoss, create_model
 
 print("Using Tensorflow Version: " + tf.__version__)
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -19,7 +15,7 @@ if __name__ == "__main__":
     Logger.remove_file_logger()
 
     Config.add_config('./config.ini')
-    collection_details = ("local_mongodb", "semseg", "comma10k")
+    collection_details = ("local_mongodb", "object_detection", "kitti")
 
     # Create Data Generators
     train_data, val_data = load_ids(
@@ -42,9 +38,8 @@ if __name__ == "__main__":
         processors=processors
     )
 
-    # Create Model
-    loss = losses.CategoricalCrossentropy(from_logits=True)
-    opt = optimizers.Adam(lr=0.0008, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    loss = Centernet2DLoss()
+    opt = optimizers.Adam(lr=0.0008, beta_1=0.9, beta_2=0.999, epsilon=1e-07) 
 
     if Params.LOAD_PATH is None:
         model: models.Model = create_model()
