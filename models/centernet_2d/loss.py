@@ -55,10 +55,10 @@ class Centernet2DLoss(Loss):
         y_true = tf.cast(y_true, tf.float32)
         y_pred = tf.cast(y_pred, tf.float32)
 
-        y_true_class = y_true[:, :, :self.nb_classes]
-        y_pred_class = y_pred[:, :, :self.nb_classes]
-        y_true_size = y_true[:, :, self.nb_classes:]
-        y_pred_size = y_pred[:, :, self.nb_classes:]
+        y_true_class = y_true[:, :, :, :self.nb_classes]
+        y_pred_class = y_pred[:, :, :, :self.nb_classes]
+        y_true_size = y_true[:, :, :, self.nb_classes:]
+        y_pred_size = y_pred[:, :, :, self.nb_classes:]
 
         class_loss = self.class_focal_loss(y_true_class, y_pred_class)
 

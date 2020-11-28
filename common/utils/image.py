@@ -17,6 +17,14 @@ class Roi:
     scale: float = 1.0
 
 
+def convert_to_roi(roi: Roi, point):
+    converted = [point[0], point[1]]
+    converted[0] = (1 / roi.scale) * point[0]
+    converted[1] = (1 / roi.scale) * point[1]
+    converted[0] -= roi.offset_left
+    converted[1] -= roi.offset_top
+    return converted
+
 def resize_img(img: np.ndarray, goal_width: int, goal_height: int, offset_bottom: int = 0, interpolation: int = cv2.INTER_LINEAR) -> (np.ndarray, Roi):
     """
     Resize image in a way that it fits the params, the default cropping will take delta height from top and delta width
