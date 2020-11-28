@@ -7,8 +7,10 @@ class Centernet2DLoss(Loss):
         super().__init__()
         self.focal_loss_alpha = focal_loss_alpha
         self.focal_loss_beta = focal_loss_beta
-        self.nb_classes = nb_classes
         self.size_weight = size_weight
+        self.class_array_pos = (0, nb_classes)
+        self.offset_array_pos = (nb_classes, nb_classes + 2)
+        self.size_array_pos = (nb_classes + 2, None)
 
     def class_focal_loss(self, y_true, y_pred):
         """
@@ -51,21 +53,42 @@ class Centernet2DLoss(Loss):
         loss_val = tf.cond(tf.greater(n, 0), lambda: loss_val / n, lambda: loss_val)
         return loss_val
 
+    def offset_loss(self, y_true, y_pred, pos_mask):
+        """
+        :param y_true: The ground truth input heat map only containing the offset info (mask_height, mask_width, 2)
+        :param y_pred: The prediction input heat map only containing the offset info (mask_height, mask_width, 2)
+        :return: Unweighted loss value regarding offset info
+        """
+        loss_mask = pos_mask * (y_true - y_pred)
+        loss_mask = tf.math.abs(loss_mask)
+        loss_val = tf.reduce_sum(loss_mask)
+        n = tf.reduce_sum(pos_mask)
+        loss_val = tf.cond(tf.greater(n, 0), lambda: loss_val / n, lambda: loss_val)
+        return loss_val
+
     def call(self, y_true, y_pred):
         y_true = tf.cast(y_true, tf.float32)
         y_pred = tf.cast(y_pred, tf.float32)
 
-        y_true_class = y_true[:, :, :, :self.nb_classes]
-        y_pred_class = y_pred[:, :, :, :self.nb_classes]
-        y_true_size = y_true[:, :, :, self.nb_classes:]
-        y_pred_size = y_pred[:, :, :, self.nb_classes:]
+        y_true_class = y_true[:, :, :, :self.class_array_pos[1]]
+        y_pred_class = y_pred[:, :, :, :self.class_array_pos[1]]
+
+        y_true_size = y_true[:, :, :, self.size_array_pos[0]:]
+        y_pred_size = y_pred[:, :, :, self.size_array_pos[0]:]
+        
+        y_true_offset = y_true[:, :, :, self.offset_array_pos[0]:self.offset_array_pos[1]]
+        y_pred_offset = y_pred[:, :, :, self.offset_array_pos[0]:self.offset_array_pos[1]]
 
         class_loss = self.class_focal_loss(y_true_class, y_pred_class)
 
-        pos_mask_size = tf.cast(tf.equal(y_true_class, 1.0), tf.float32)
-        pos_mask_size = tf.reduce_max(pos_mask_size, axis=-1, keepdims=True)
-        pos_mask_size = tf.broadcast_to(pos_mask_size, tf.shape(y_true_size))
+        pos_mask = tf.cast(tf.equal(y_true_class, 1.0), tf.float32)
+        pos_mask = tf.reduce_max(pos_mask, axis=-1, keepdims=True)
+
+        pos_mask_size = tf.broadcast_to(pos_mask, tf.shape(y_true_size))
         size_loss = self.size_loss(y_true_size, y_pred_size, pos_mask_size)
 
-        total_loss = class_loss + (self.size_weight * size_loss)
+        pos_mask_offset = tf.broadcast_to(pos_mask, tf.shape(y_true_offset))
+        offset_loss = self.offset_loss(y_true_offset, y_pred_offset, pos_mask_offset)
+
+        total_loss = class_loss + offset_loss + (self.size_weight * size_loss)
         return total_loss

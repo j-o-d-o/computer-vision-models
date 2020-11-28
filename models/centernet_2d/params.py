@@ -9,7 +9,6 @@ class Params:
     ########################
     INPUT_WIDTH = 612
     INPUT_HEIGHT = 185
-    INPUT_CHANNELS = 3
 
     ########################
     ### HYPER PARAMETERS ###

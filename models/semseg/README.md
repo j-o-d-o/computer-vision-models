@@ -16,3 +16,6 @@ activate computer-vision-models
 python models/semseg/inference.py --model_path ./trained_models/semseg_*/tf_model_*
 ```
 Inference for tf lite is still work in progress as well as testing the ege tpu inference from the host machine.
+
+## Tests
+Assume a working mongodb connection and semseg data (comma10k) uploaded to it

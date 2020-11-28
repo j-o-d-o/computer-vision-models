@@ -7,15 +7,23 @@ from data.od_spec import OD_CLASS_MAPPING
 
 class TestPosProcessing:
     def test_post_processing(self):
-        output_mask = np.zeros((9, 11, 5))
-        output_mask[4][5][0] = 0.8
-        output_mask[4][5][3] = 0.7
-        output_mask[4][5][4] = 0.4
-        output_mask[2][6][1] = 1.0
-        output_mask[2][6][3] = 1.0
-        output_mask[2][6][4] = 1.0
-        r = 2.0
         nb_classes = 3
+        channels = nb_classes + 4 # offset_x, offset_y, width, height
+        output_mask = np.zeros((9, 11, channels))
+        # Add obj 1
+        obj1 = output_mask[4][5]
+        obj1[0] = 0.8
+        obj1[nb_classes + 0] = -0.5
+        obj1[nb_classes + 1] = 0.5
+        obj1[nb_classes + 2] = 0.7
+        obj1[nb_classes + 3] = 0.4
+        # Add obj 2
+        obj2 = output_mask[2][6]
+        obj2[1] = 1.0
+        obj2[nb_classes + 2] = 1.0
+        obj2[nb_classes + 3] = 1.0
+        
+        r = 2.0
         roi = Roi()
         roi.scale = 0.25
         roi.offset_left = -20

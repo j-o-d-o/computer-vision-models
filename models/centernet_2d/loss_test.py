@@ -9,7 +9,7 @@ class TestLoss():
         mask_height = 8
         mask_width = 8
         nb_classes = 3
-        channels = nb_classes + 2
+        channels = nb_classes + 2 + 2
 
         # Object data
         keypoint_x = 1
@@ -20,8 +20,8 @@ class TestLoss():
 
         # Create ground truth input
         ground_truth = np.zeros((mask_height, mask_width, channels))
-        ground_truth[keypoint_y][keypoint_x][nb_classes] = obj_width
-        ground_truth[keypoint_y][keypoint_x][nb_classes + 1] = obj_height
+        ground_truth[keypoint_y][keypoint_x][nb_classes + 2] = obj_width
+        ground_truth[keypoint_y][keypoint_x][nb_classes + 3] = obj_height
         ground_truth[keypoint_y][keypoint_x][cls_idx] = 1.0
         ground_truth[keypoint_y + 1][keypoint_x][cls_idx] = 0.5
         ground_truth[keypoint_y - 1][keypoint_x][cls_idx] = 0.5
@@ -37,16 +37,16 @@ class TestLoss():
         perfect_prediction[keypoint_y][keypoint_x - 1][cls_idx] = 0.0
 
         centernet2dLoss = Centernet2DLoss(nb_classes, size_weight = 0.4, focal_loss_alpha = 2.0, focal_loss_beta = 0.4)
-        no_loss = centernet2dLoss(ground_truth, perfect_prediction).numpy()
+        no_loss = centernet2dLoss(np.asarray([ground_truth]), np.asarray([perfect_prediction])).numpy()
         assert pytest.approx(no_loss) == 0.0
 
 
         # Create flawed size prediction
         prediction = perfect_prediction.copy()
-        prediction[keypoint_y][keypoint_x][nb_classes] = obj_width + 0.2
-        prediction[keypoint_y][keypoint_x][nb_classes + 1] = obj_height - 0.2
+        prediction[keypoint_y][keypoint_x][nb_classes + 2] = obj_width + 0.2
+        prediction[keypoint_y][keypoint_x][nb_classes + 3] = obj_height - 0.2
 
-        flawd_size_loss = centernet2dLoss(ground_truth, prediction).numpy()
+        flawd_size_loss = centernet2dLoss(np.asarray([ground_truth]), np.asarray([prediction])).numpy()
         assert pytest.approx(flawd_size_loss, 0.01) == 0.08
 
 
@@ -56,5 +56,5 @@ class TestLoss():
         prediction[keypoint_y][keypoint_x][cls_idx - 1] = 0.4
         prediction[keypoint_y][keypoint_x + 1][cls_idx] = 0.6
 
-        flawd_class_loss = centernet2dLoss(ground_truth, prediction).numpy()
+        flawd_class_loss = centernet2dLoss(np.asarray([ground_truth]), np.asarray([prediction])).numpy()
         assert pytest.approx(flawd_class_loss, 0.01) == 0.34

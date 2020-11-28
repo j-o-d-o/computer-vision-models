@@ -21,25 +21,32 @@ class ProcessImages(IPreProcessor):
         mask_width = Params.INPUT_WIDTH // Params.R
         mask_height = Params.INPUT_HEIGHT // Params.R
         nb_classes = len(OD_CLASS_MAPPING)
-        mask_channels = nb_classes + 2 # nb_classes + width + height
+        mask_channels = nb_classes + 4 # nb_classes + offset_x + offset_y + width + height
         ground_truth = np.zeros((mask_height, mask_width, mask_channels))
         # Add objects
         for obj in raw_data["objects"]:
-            scaled_box2d = (np.asarray(obj["box2d"]) * roi.scale) // float(Params.R)
-            width = int(scaled_box2d[2])
-            height = int(scaled_box2d[3])
-            center_x = int(scaled_box2d[0] + (width // 2.0))
-            center_y = int(scaled_box2d[1] + (height // 2.0))
+            scaled_box2d = (np.asarray(obj["box2d"]) * roi.scale) / float(Params.R)
+            width = scaled_box2d[2]
+            height = scaled_box2d[3]
+            center_x_float = scaled_box2d[0] + (float(width) / 2.0)
+            center_y_float = scaled_box2d[1] + (float(height) / 2.0)
+            center_x = max(0, min(mask_width - 1, int(center_x_float))) # index needs to be int and within mask range
+            center_y = max(0, min(mask_height - 1, int(center_y_float))) # index needs to be int and within mask range
+            offset_x = center_x_float - center_x
+            offset_y = center_y_float - center_y
+            # Fill offset x and y
+            ground_truth[center_y][center_x][nb_classes + 0] = offset_x
+            ground_truth[center_y][center_x][nb_classes + 1] = offset_y
             # Fill width and height at keypoint
-            ground_truth[center_y][center_x][nb_classes] = width
-            ground_truth[center_y][center_x][nb_classes + 1] = height
-            # TODO: Add offset_x, offset_y, ignore_flag
+            ground_truth[center_y][center_x][nb_classes + 2] = width
+            ground_truth[center_y][center_x][nb_classes + 3] = height
+            # TODO: Add ignore_flag
             # Fill an area that is half the size of the object width and height with a gausian distribution for lower loss in that area
             cls_idx = OD_CLASS_IDX[obj["obj_class"]]
-            min_x = max(0, center_x - (width // 4))
-            max_x = min(mask_width, center_x + (width // 4))
-            min_y = max(0, center_y - (height // 4))
-            max_y = min(mask_height, center_y + (height // 4))
+            min_x = max(0, center_x - int(width // 4))
+            max_x = min(mask_width, center_x + int(width // 4))
+            min_y = max(0, center_y - int(height // 4))
+            max_y = min(mask_height, center_y + int(height // 4))
             for x in range(min_x, max_x):
                 for y in range(min_y, max_y):
                     stdDevWidth = width * 0.05

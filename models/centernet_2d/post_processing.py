@@ -14,12 +14,15 @@ def process_2d_output(output_mask, roi: Roi, r: float, nb_classes: int):
             start_x = x - 2
             end_x = x + 3
             max_idx = np.unravel_index(np.argmax(output_mask[start_y:end_y, start_x:end_x, cls_idx]), (5, 5))
-            if max_idx == (2, 2) and output_mask[y][x][cls_idx] > 0.25:
+            curr_pixel = output_mask[y][x]
+            if max_idx == (2, 2) and curr_pixel[cls_idx] > 0.25:
                 # found object
-                r_scaled_center = (x * r, y * r)
+                offset_x = curr_pixel[nb_classes]
+                offset_y = curr_pixel[nb_classes + 1]
+                r_scaled_center = ((x * r) + offset_x, (y * r) + offset_y)
                 center = convert_to_roi(roi, r_scaled_center)
-                width = output_mask[y][x][nb_classes] * r * (1 / roi.scale)
-                height = output_mask[y][x][nb_classes + 1] * r * (1 / roi.scale)
+                width = curr_pixel[nb_classes + 2] * r * (1 / roi.scale)
+                height = curr_pixel[nb_classes + 3] * r * (1 / roi.scale)
                 objects.append({
                     "obj_idx": cls_idx,
                     "top_left": (int(center[0] - (width * 0.5)), int(center[1] - (height * 0.5))),

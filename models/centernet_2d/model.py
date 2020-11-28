@@ -69,6 +69,16 @@ def create_model(input_height, input_width, mask_height, mask_width, nb_classes)
         kernel_initializer=tf.keras.initializers.RandomNormal(0.01), kernel_regularizer=tf.keras.regularizers.l2(1.25e-5),
         bias_initializer=tf.constant_initializer(-np.log((1.0 - 0.1) / 0.1)), name="heatmap")(output_heatmap)
     
+    # Create offset output
+    output_offset = tf.keras.layers.Conv2D(32, (3, 3), padding="same", use_bias=False,
+        kernel_initializer=tf.keras.initializers.RandomNormal(0.001), kernel_regularizer=tf.keras.regularizers.l2(1.25e-5),
+        name="offset_conv2D")(features)
+    output_offset = tf.keras.layers.BatchNormalization(name="offset_norm")(output_offset)
+    output_offset = tf.keras.layers.Activation("relu", name="offset_activ")(output_offset)
+    output_offset = tf.keras.layers.Conv2D(2, (1, 1), padding="valid", activation=None,
+        kernel_initializer=tf.keras.initializers.RandomNormal(0.001), kernel_regularizer=tf.keras.regularizers.l2(1.25e-5),
+        name="offset")(output_offset)
+
     # Create size output
     output_bbox_size = tf.keras.layers.Conv2D(32, (3, 3), padding="same", use_bias=False,
         kernel_initializer=tf.keras.initializers.RandomNormal(0.001), kernel_regularizer=tf.keras.regularizers.l2(1.25e-5),
@@ -80,7 +90,7 @@ def create_model(input_height, input_width, mask_height, mask_width, nb_classes)
         name="bounding_box_size")(output_bbox_size)
 
     # Concatenate output
-    output_layer = tf.keras.layers.concatenate([output_heatmap, output_bbox_size], axis=3)
+    output_layer = tf.keras.layers.concatenate([output_heatmap, output_offset, output_bbox_size], axis=3)
 
     # Create Model
     model = tf.keras.Model(inputs=base_model.input, outputs=output_layer, name="centernet2d")
