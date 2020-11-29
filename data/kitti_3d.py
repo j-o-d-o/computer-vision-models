@@ -127,6 +127,7 @@ if __name__ == "__main__":
   parser.add_argument("--image_path", type=str, help="Path to kitti training images e.g. /path/to/kitti/data_object_image/training/image_2")
   parser.add_argument("--label_path", type=str, help="Path to kitti labels e.g. /path/to/kitti/data_object_label/training/label_2")
   parser.add_argument("--calib_path", type=str, help="Path to kitti calibration data e.g. /path/to/kitti/data_object_calib/training/calib")
+  parser.add_argument("--test_image_path", type=str, help="Path to kitti test images e.g. /path/to/kitti/data_object_image/testing/image_2")
   parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
   parser.add_argument("--db", type=str, default="object_detection", help="MongoDB database")
   parser.add_argument("--collection", type=str, default="kitti", help="MongoDB collection")
@@ -135,7 +136,13 @@ if __name__ == "__main__":
   client = MongoClient(args.conn)
   collection = client[args.db][args.collection]
 
-  for filename in tqdm(os.listdir(args.label_path)):
+  label_file_list = []
+  if args.label_path is not None:
+    label_file_list = os.listdir(args.label_path)
+  else:
+    print("WARNING: Label path is None, training data will not be uploaded!")
+
+  for filename in tqdm(label_file_list):
     kitty_id = filename[:-4]
 
     # check if already exists, if yes, continue with next
@@ -228,3 +235,45 @@ if __name__ == "__main__":
 
       # upload to mongodb
       collection.insert_one(entry.get_dict())
+  
+  # Upload test data
+  test_collection = client[args.db][args.collection + "_test"]
+  if args.test_image_path is not None:
+    test_images_files_list = os.listdir(args.test_image_path)
+  else:
+    print("WARNING: Test Image path is None, test data will not be uploaded!")
+
+  for filename in tqdm(test_images_files_list):
+    kitty_id = filename[:-4]
+
+    # check if already exists, if yes, continue with next
+    check_db_entry = test_collection.find_one({ "org_source": "kitti_test", "org_id": kitty_id})
+    if check_db_entry is not None:
+      print("WARNING: Entry " + str(kitty_id) + " already exists, continue with next image")
+      continue
+
+    # load image
+    img_path = args.test_image_path + "/" + str(kitty_id) + ".png"
+    if os.path.exists(img_path):
+      img = cv2.imread(img_path)
+      img_bytes = cv2.imencode('.png', img)[1].tobytes()
+      content_type = "image/png"
+    else:
+      print("WARNING: file not found: " + img_path + ", continue with next image")
+      continue
+
+    obj_list = []
+    ignore_areas = []
+    entry = Entry(
+      img=img_bytes,
+      content_type=content_type,
+      org_source="kitti_test",
+      org_id=kitty_id,
+      objects=obj_list,
+      ignore=ignore_areas,
+      has_3D_info=False,
+      has_track_info=False
+    )
+
+    # upload to mongodb
+    test_collection.insert_one(entry.get_dict())
