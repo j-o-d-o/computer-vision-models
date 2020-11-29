@@ -54,8 +54,8 @@ class ProcessImages(IPreProcessor):
                 for y in range(min_y, max_y):
                     varWidth = math.pow(((Params.VARIANCE_ALPHA * width) / (6 * Params.R)), 2)
                     varHeight = math.pow(((Params.VARIANCE_ALPHA * height) / (6 * Params.R)), 2)
-                    weight_width = math.pow((x - center_x_float), 2) / (2 * varWidth)
-                    weight_height = math.pow((y - center_y_float), 2) / (2 * varHeight)
+                    weight_width = math.pow((x - center_x), 2) / (2 * varWidth)
+                    weight_height = math.pow((y - center_y), 2) / (2 * varHeight)
                     weight = math.exp(-weight_width - weight_height)
                     ground_truth[y][x][cls_idx] = max(weight, ground_truth[y][x][cls_idx])
 
