@@ -69,11 +69,9 @@ class Centernet2DLoss(Loss):
 
     def call(self, y_true, y_pred):
         y_true = tf.cast(y_true, tf.float32)
-        test_y = y_true.numpy()
         y_pred = tf.cast(y_pred, tf.float32)
 
         y_true_class = y_true[:, :, :, :self.class_array_pos[1]]
-        test_y_true_class = y_true_class.numpy()
         y_pred_class = y_pred[:, :, :, :self.class_array_pos[1]]
 
         y_true_size = y_true[:, :, :, self.size_array_pos[0]:]
