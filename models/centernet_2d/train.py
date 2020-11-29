@@ -41,8 +41,8 @@ if __name__ == "__main__":
     )
 
     nb_classes = len(OD_CLASS_MAPPING)
-    loss = Centernet2DLoss(nb_classes, Params.LOSS_SIZE_WEIGHT, Params.FOCAL_LOSS_ALPHA, Params.FOCAL_LOSS_BETA)
-    opt = tf.keras.optimizers.Adam(lr=0.0008, beta_1=0.9, beta_2=0.999, epsilon=1e-07) 
+    loss = Centernet2DLoss(nb_classes, Params.LOSS_SIZE_WEIGHT, Params.LOSS_OFFSET_WEIGHT, Params.FOCAL_LOSS_ALPHA, Params.FOCAL_LOSS_BETA)
+    opt = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07) 
 
     if Params.LOAD_PATH is None:
         model: tf.keras.models.Model = create_model(
