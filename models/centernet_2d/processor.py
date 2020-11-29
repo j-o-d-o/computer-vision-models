@@ -25,6 +25,9 @@ class ProcessImages(IPreProcessor):
         ground_truth = np.zeros((mask_height, mask_width, mask_channels))
         # Add objects
         for obj in raw_data["objects"]:
+            if obj["box2d"][2] < Params.MIN_BOX_WIDTH or obj["box2d"][3] < Params.MIN_BOX_HEIGHT:
+                # TODO: If filtered out because box is too small, they need to be added to the ignore area
+                continue
             scaled_box2d = (np.asarray(obj["box2d"]) * roi.scale) / float(Params.R)
             width = scaled_box2d[2]
             height = scaled_box2d[3]
@@ -41,17 +44,19 @@ class ProcessImages(IPreProcessor):
             ground_truth[center_y][center_x][nb_classes + 2] = width
             ground_truth[center_y][center_x][nb_classes + 3] = height
             # TODO: Add ignore_flag
-            # Fill an area that is half the size of the object width and height with a gausian distribution for lower loss in that area
+            # Fill an area that is the size of the object with a gausian distribution for lower loss in that area
             cls_idx = OD_CLASS_IDX[obj["obj_class"]]
-            min_x = max(0, center_x - int(width // 4))
-            max_x = min(mask_width, center_x + int(width // 4))
-            min_y = max(0, center_y - int(height // 4))
-            max_y = min(mask_height, center_y + int(height // 4))
+            min_x = max(0, center_x - int(width // 2))
+            max_x = min(mask_width, center_x + int(width // 2))
+            min_y = max(0, center_y - int(height // 2))
+            max_y = min(mask_height, center_y + int(height // 2))
             for x in range(min_x, max_x):
                 for y in range(min_y, max_y):
-                    stdDevWidth = width * 0.05
-                    stdDevHeight = height * 0.05
-                    score = math.exp(-((math.pow(x - center_x, 2) + math.pow(y - center_y, 2)) / (math.pow(stdDevHeight, 2) + math.pow(stdDevWidth, 2))))
-                    ground_truth[y][x][cls_idx] = max(score, ground_truth[y][x][cls_idx])
+                    varWidth = math.pow(((Params.VARIANCE_ALPHA * width) / (6 * Params.R)), 2)
+                    varHeight = math.pow(((Params.VARIANCE_ALPHA * height) / (6 * Params.R)), 2)
+                    weight_width = math.pow((x - center_x_float), 2) / (2 * varWidth)
+                    weight_height = math.pow((y - center_y_float), 2) / (2 * varHeight)
+                    weight = math.exp(-weight_width - weight_height)
+                    ground_truth[y][x][cls_idx] = max(weight, ground_truth[y][x][cls_idx])
 
         return raw_data, input_data, ground_truth, piped_params
