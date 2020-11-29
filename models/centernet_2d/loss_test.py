@@ -36,7 +36,7 @@ class TestLoss():
         perfect_prediction[keypoint_y][keypoint_x + 1][cls_idx] = 0.0
         perfect_prediction[keypoint_y][keypoint_x - 1][cls_idx] = 0.0
 
-        centernet2dLoss = Centernet2DLoss(nb_classes, size_weight = 0.4, focal_loss_alpha = 2.0, focal_loss_beta = 0.4)
+        centernet2dLoss = Centernet2DLoss(nb_classes, size_weight = 0.4, offset_weight = 0.2, focal_loss_alpha = 2.0, focal_loss_beta = 0.4)
         no_loss = centernet2dLoss(np.asarray([ground_truth]), np.asarray([perfect_prediction])).numpy()
         assert pytest.approx(no_loss) == 0.0
 
@@ -47,7 +47,7 @@ class TestLoss():
         prediction[keypoint_y][keypoint_x][nb_classes + 3] = obj_height - 0.2
 
         flawd_size_loss = centernet2dLoss(np.asarray([ground_truth]), np.asarray([prediction])).numpy()
-        assert pytest.approx(flawd_size_loss, 0.01) == 0.08
+        assert pytest.approx(flawd_size_loss, 0.01) == 0.16
 
 
         # Create flawed class
@@ -58,3 +58,16 @@ class TestLoss():
 
         flawd_class_loss = centernet2dLoss(np.asarray([ground_truth]), np.asarray([prediction])).numpy()
         assert pytest.approx(flawd_class_loss, 0.01) == 0.34
+
+        # Only size predicted good
+        only_size_predicted = np.zeros((mask_height, mask_width, channels))
+        only_size_predicted[keypoint_y][keypoint_x][nb_classes + 2] = obj_width
+        only_size_predicted[keypoint_y][keypoint_x][nb_classes + 3] = obj_height
+        only_size_loss = centernet2dLoss(np.asarray([ground_truth]), np.asarray([only_size_predicted])).numpy()
+        print(only_size_loss)
+
+        # Create all zero
+        no_detections = np.zeros((mask_height, mask_width, channels))
+        no_detections_loss = centernet2dLoss(np.asarray([ground_truth]), np.asarray([no_detections])).numpy()
+        print(no_detections_loss)
+

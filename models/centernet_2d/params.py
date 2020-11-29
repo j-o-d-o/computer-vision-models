@@ -17,7 +17,9 @@ class Params:
     FOCAL_LOSS_ALPHA = 2
     FOCAL_LOSS_BETA = 4
     LOSS_SIZE_WEIGHT = 0.4
+    LOSS_OFFSET_WEIGHT = 0.1
     VARIANCE_ALPHA = 0.90
+    BOTTELNECK_ALPHA = 1
 
     #######################
     ### FILTERED LABELS ###
@@ -28,8 +30,8 @@ class Params:
     ########################
     ### TRAIN PARAMETERS ###
     ########################
-    NUM_EPOCH = 20
-    BATCH_SIZE = 3
+    NUM_EPOCH = 50
+    BATCH_SIZE = 8
 
     ########################
     ### TRAINING FLAGS #####
