@@ -1,5 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import optimizers, models, losses
+from datetime import datetime
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.callbacks import SaveToStorage
 from common.utils import Logger, Config
@@ -25,7 +26,7 @@ if __name__ == "__main__":
     train_data, val_data = load_ids(
         collection_details,
         data_split=(77, 23),
-        shuffle_data=True,
+        shuffle_data=True
     )
 
     processors = [ProcessImages()]
@@ -56,13 +57,17 @@ if __name__ == "__main__":
         model.summary()
 
     # Train Model
-    callbacks = [(SaveToStorage("./trained_models", "semseg", model, False))]
-    model.fit_generator(
-        generator=train_gen,
+    name = ""
+    storage_path = "./trained_models/semseg_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
+    callbacks = [SaveToStorage(storage_path, model, False), tensorboard_callback]
+
+    model.fit(
+        train_gen,
         validation_data=val_gen,
         epochs=Params.NUM_EPOCH,
         verbose=1,
-        callbacks=[callbacks],
+        callbacks=callbacks,
         initial_epoch=0,
         use_multiprocessing=False,
         workers=2,

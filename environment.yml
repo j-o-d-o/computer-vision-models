@@ -1,6 +1,6 @@
 name: computer-vision-models
 dependencies:
-  - python=3.8
+  - python=3.7
   - tensorflow-gpu==2.2.0
   - pytest
   - matplotlib
@@ -14,3 +14,6 @@ dependencies:
     - nuscenes-devkit
     - tensorflow-model-optimization
     - redis # to get the python interface for redis
+    # tflite-runtime and py-coral for linux
+    - https://github.com/google-coral/pycoral/releases/download/release-frogfish/tflite_runtime-2.5.0-cp37-cp37m-linux_x86_64.whl
+    - https://github.com/google-coral/pycoral/releases/download/release-frogfish/pycoral-1.0.0-cp37-cp37m-linux_x86_64.whl

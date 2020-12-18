@@ -1,3 +1,4 @@
+# Note: Make sure to follow the instructions on the README.md for edgetpu support
 import tensorflow as tf
 import numpy as np
 import os
@@ -18,8 +19,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Inference from tensorflow model")
     parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
     parser.add_argument("--db", type=str, default="object_detection", help="MongoDB database")
-    parser.add_argument("--collection", type=str, default="kitti", help="MongoDB collection")
-    parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/centernet2d_29-11-2020-12-29-58/tf_model_5", help="Path to a tensorflow model folder")
+    parser.add_argument("--collection", type=str, default="kitti_test", help="MongoDB collection")
+    parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/centernet2d_29-11-2020-13-13-56/tf_model_19", help="Path to a tensorflow model folder")
     args = parser.parse_args()
 
     client = MongoClient(args.conn)

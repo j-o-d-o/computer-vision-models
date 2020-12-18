@@ -62,13 +62,13 @@ def create_model():
 
     conv_up = upsample_bock(conv,    conv_down_5, 64)
     conv_up = upsample_bock(conv_up, conv_down_4, 48)
-    conv_up = Dropout(0.3)(conv_up)
+    conv_up = Dropout(0.4)(conv_up)
     conv_up = upsample_bock(conv_up, conv_down_3, 32)
-    conv_up = Dropout(0.25)(conv_up)
+    conv_up = Dropout(0.3)(conv_up)
     conv_up = upsample_bock(conv_up, conv_down_2, 16)
-    conv_up = Dropout(0.2)(conv_up)
+    conv_up = Dropout(0.3)(conv_up)
     conv_up = upsample_bock(conv_up, conv_down_1, 16, final_layer=True)
-    conv_up = Dropout(0.15)(conv_up)
+    conv_up = Dropout(0.25)(conv_up)
 
     out = Conv2D(len(SEMSEG_CLASS_MAPPING), (1, 1))(conv_up)
 

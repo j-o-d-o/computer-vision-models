@@ -25,3 +25,31 @@ Does not exist yet, work in progress. But the idea is that just like different d
 
 ## Tests
 Tests should be in the same location as the file that is tested with the naming convention $(FILE_NAME)_test.py. To run tests call `$ pytest` in the root directory or use your favorite test runner (e.g. pycharm or vs code).
+
+## EdgeTpu Support
+
+Regarding this issue https://github.com/tensorflow/tensorflow/issues/32743
+```bash
+# add user to plugdev to communicate with edge tpu without needing sudo everytiem
+sudo usermod -aG plugdev $USER
+
+# add this to /etc/udev/rules.d/99-edgetpu-accelerator.rules (might have to create the file first)
+SUBSYSTEM=="usb",ATTRS{idVendor}=="1a6e",GROUP="plugdev"
+SUBSYSTEM=="usb",ATTRS{idVendor}=="18d1",GROUP="plugdev"
+```
+
+Install pycoral runtime with apt-get
+```bash
+sudo apt-get update
+sudo apt-get install python3-pycoral
+```
+
+The TFLite model that is generated here does not yet run on the edge tpu, it needs one more compile step as explained here
+https://coral.ai/docs/edgetpu/compiler
+```bash
+curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+echo "deb https://packages.cloud.google.com/apt coral-edgetpu-stable main" | sudo tee /etc/apt/sources.list.d/coral-edgetpu.list
+sudo apt-get update
+sudo apt-get install edgetpu-compiler
+edgetpu-compiler path/to/model_quant.tflite
+```
