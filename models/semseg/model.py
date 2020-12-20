@@ -1,20 +1,23 @@
-from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, Dropout, concatenate, ZeroPadding2D, BatchNormalization
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, Dropout, concatenate, ZeroPadding2D, BatchNormalization, Activation, UpSampling2D
 from tensorflow.keras.models import Model
 from data.semseg_spec import SEMSEG_CLASS_MAPPING
 from models.semseg.params import Params
 
 
 def downsample_block(inputs, filters: int, kernel=(3, 3)):
-    conv1 = Conv2D(filters, kernel, activation='relu', padding='same')(inputs)
+    conv1 = Conv2D(filters, kernel, padding='same')(inputs)
     conv1 = BatchNormalization()(conv1)
-    conv2 = Conv2D(filters, kernel, activation='relu', padding='same')(conv1)
+    conv1 = Activation('relu')(conv1)
+    conv2 = Conv2D(filters, kernel, padding='same')(conv1)
     conv2 = BatchNormalization()(conv2)
+    conv2 = Activation('relu')(conv2)
     pool = MaxPooling2D(pool_size=(2, 2), padding='same')(conv2)
     return pool, conv2
 
 
 def upsample_bock(inputs, concat_layer, filters: int, kernel=(3, 3), final_layer: bool = False):
     up_layer = Conv2DTranspose(filters, (2, 2), strides=(2, 2), padding='same')(inputs)
+    # up_layer = UpSampling2D()(inputs)
 
     # find crop values for height
     pad_up_layer = up_layer.shape[1] < concat_layer.shape[1]
@@ -39,13 +42,15 @@ def upsample_bock(inputs, concat_layer, filters: int, kernel=(3, 3), final_layer
         padded_concat_layer = ZeroPadding2D((diff_height_tuple, diff_width_tuple))(concat_layer)
         up = concatenate([up_layer, padded_concat_layer], axis=3)
 
-    conv1 = Conv2D(filters*2, kernel, activation='relu', padding='same')(up)
+    conv1 = Conv2D(filters*2, kernel, padding='same')(up)
     conv1 = BatchNormalization()(conv1)
+    conv1 = Activation('relu')(conv1)
     if final_layer:
-        conv2 = Conv2D(filters, kernel, activation='relu', padding='same')(conv1)
+        conv2 = Conv2D(filters, kernel, padding='same')(conv1)
     else:
-        conv2 = Conv2D(filters, kernel, activation='relu', padding='valid')(conv1)
+        conv2 = Conv2D(filters, kernel, padding='valid')(conv1)
     conv2 = BatchNormalization()(conv2)
+    conv2 = Activation('relu')(conv2)
     return conv2
 
 

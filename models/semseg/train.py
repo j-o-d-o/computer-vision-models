@@ -1,3 +1,4 @@
+import tensorflow_model_optimization as tfmot
 import tensorflow as tf
 from tensorflow.keras import optimizers, models, losses
 from datetime import datetime
@@ -49,11 +50,14 @@ if __name__ == "__main__":
 
     if Params.LOAD_PATH is None:
         model: models.Model = create_model()
+        # Use in case of quantization aware training, but not working properly yet when converting to tflite
+        # model = tfmot.quantization.keras.quantize_model(model)
         model.compile(optimizer=opt, loss=loss)
         model.summary()
     else:
         custom_objects = {"compute_loss": loss}
         model: models.Model = models.load_model(Params.LOAD_PATH, custom_objects=custom_objects)
+        # model = tfmot.quantization.keras.quantize_model(model)
         model.summary()
 
     # Train Model

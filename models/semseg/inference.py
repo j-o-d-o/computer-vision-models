@@ -23,11 +23,9 @@ if __name__ == "__main__":
     parser.add_argument("--img_width", type=int, default=320, help="Width of image, must be model input")
     parser.add_argument("--img_height", type=int, default=130, help="Width of image, must be model input")
     parser.add_argument("--offset_bottom", type=int, default=-200, help="Offset from the bottom in orignal image scale")
-    parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/semseg_2020-12-04-081334/tf_model_22/model_quant_int8_edgetpu.tflite", help="Path to a tensorflow model folder")
+    parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/semseg_2020-12-19-12481/tf_model_5", help="Path to a tensorflow model folder")
     parser.add_argument("--use_edge_tpu", action="store_true", help="EdgeTpu should be used for inference")
     args = parser.parse_args()
-
-    args.use_edge_tpu = True
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]
@@ -49,7 +47,6 @@ if __name__ == "__main__":
         interpreter.allocate_tensors()
         input_details = interpreter.get_input_details()
         output_details = interpreter.get_output_details()
-
     else:
         model: tf.keras.models.Model = tf.keras.models.load_model(args.model_path, compile=False)
         model.summary()
