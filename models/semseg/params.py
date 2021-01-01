@@ -18,7 +18,7 @@ class Params:
     ### TRAIN PARAMETERS ###
     ########################
     NUM_EPOCH = 38
-    BATCH_SIZE = 16
+    BATCH_SIZE = 8
 
     ########################
     ### TRAINING FLAGS #####
