@@ -1,4 +1,4 @@
-from tensorflow_model_optimization.quantization.keras import quantize_annotate_layer, quantize_apply, load_model
+from tensorflow_model_optimization.quantization.keras import quantize_annotate_layer, quantize_apply
 from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, Dropout, concatenate, ZeroPadding2D, BatchNormalization, Activation
 from tensorflow.keras.models import Model, clone_model
 from data.semseg_spec import SEMSEG_CLASS_MAPPING
