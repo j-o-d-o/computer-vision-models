@@ -1,5 +1,6 @@
-from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, Dropout, concatenate, ZeroPadding2D, BatchNormalization, Activation, UpSampling2D
-from tensorflow.keras.models import Model
+from tensorflow_model_optimization.quantization.keras import quantize_annotate_layer, quantize_apply, load_model
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, Dropout, concatenate, ZeroPadding2D, BatchNormalization, Activation
+from tensorflow.keras.models import Model, clone_model
 from data.semseg_spec import SEMSEG_CLASS_MAPPING
 from models.semseg.params import Params
 
@@ -53,25 +54,36 @@ def upsample_bock(inputs, concat_layer, filters: int, kernel=(3, 3), final_layer
     return conv2
 
 
-def create_model():
+def quantize_model(model):
+    def apply_quantization_annotation(layer):
+        # Add all layers to the tuple that currently do not have any quantization support
+        if not isinstance(layer, (Conv2DTranspose)):
+            return quantize_annotate_layer(layer)
+        return layer
+
+    annotated_model = clone_model(model, clone_function=apply_quantization_annotation)
+    quant_aware_model = quantize_apply(annotated_model)
+    return quant_aware_model
+
+def create_model(quant_aware_training: bool = True):
     inputs = Input(shape=(Params.INPUT_HEIGHT, Params.INPUT_WIDTH, Params.INTPUT_CHANNELS))
 
-    pool1, conv_down_1 = downsample_block(inputs, 16, kernel=(5, 5))
-    pool2, conv_down_2 = downsample_block(pool1, 16)
-    pool3, conv_down_3 = downsample_block(pool2, 32)
-    pool4, conv_down_4 = downsample_block(pool3, 48)
-    pool5, conv_down_5 = downsample_block(pool4, 64)
+    pool1, conv_down_1 = downsample_block(inputs, 32, kernel=(5, 5))
+    pool2, conv_down_2 = downsample_block(pool1, 48)
+    pool3, conv_down_3 = downsample_block(pool2, 64)
+    pool4, conv_down_4 = downsample_block(pool3, 128)
+    pool5, conv_down_5 = downsample_block(pool4, 254)
 
-    conv = Conv2D(128, (3, 3), padding='same')(pool5)
+    conv = Conv2D(254, (3, 3), padding='same')(pool5)
     conv = BatchNormalization()(conv)
     conv = Activation('relu')(conv)
 
-    conv_up = upsample_bock(conv,    conv_down_5, 64)
-    conv_up = upsample_bock(conv_up, conv_down_4, 48)
+    conv_up = upsample_bock(conv,    conv_down_5, 128)
+    conv_up = upsample_bock(conv_up, conv_down_4, 64)
     conv_up = Dropout(0.4)(conv_up)
-    conv_up = upsample_bock(conv_up, conv_down_3, 32)
-    conv_up = Dropout(0.3)(conv_up)
-    conv_up = upsample_bock(conv_up, conv_down_2, 16)
+    conv_up = upsample_bock(conv_up, conv_down_3, 48)
+    conv_up = Dropout(0.35)(conv_up)
+    conv_up = upsample_bock(conv_up, conv_down_2, 32)
     conv_up = Dropout(0.3)(conv_up)
     conv_up = upsample_bock(conv_up, conv_down_1, 16, final_layer=True)
     conv_up = Dropout(0.25)(conv_up)
@@ -79,4 +91,6 @@ def create_model():
     out = Conv2D(len(SEMSEG_CLASS_MAPPING), (1, 1))(conv_up)
 
     model = Model(inputs=[inputs], outputs=[out])
+    if quant_aware_training:
+        model = quantize_model(model)
     return model
