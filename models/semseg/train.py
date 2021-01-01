@@ -1,13 +1,10 @@
-import tensorflow_model_optimization as tfmot
 import tensorflow as tf
-from tensorflow.keras import optimizers, models, losses
+from tensorflow.keras import optimizers, models, metrics
 from datetime import datetime
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.callbacks import SaveToStorage
 from common.utils import Logger, Config
-from models.semseg.processor import ProcessImages
-from models.semseg.params import Params
-from models.semseg.model import create_model
+from models.semseg import create_model, Params, ProcessImages, SemsegLoss
 
 print("Using Tensorflow Version: " + tf.__version__)
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -27,7 +24,7 @@ if __name__ == "__main__":
     train_data, val_data = load_ids(
         collection_details,
         data_split=(77, 23),
-        shuffle_data=True
+        shuffle_data=True,
     )
 
     processors = [ProcessImages()]
@@ -45,22 +42,23 @@ if __name__ == "__main__":
     )
 
     # Create Model
-    loss = losses.CategoricalCrossentropy(from_logits=True)
+    loss = SemsegLoss()
+    metrics = []
     opt = optimizers.Adam(lr=0.0008, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
 
     if Params.LOAD_PATH is None:
         model: models.Model = create_model()
-        # Use in case of quantization aware training, but not working properly yet when converting to tflite
-        # model = tfmot.quantization.keras.quantize_model(model)
-        model.compile(optimizer=opt, loss=loss)
+        model.compile(optimizer=opt, loss=loss, metrics=metrics)
         model.summary()
     else:
         custom_objects = {"compute_loss": loss}
         model: models.Model = models.load_model(Params.LOAD_PATH, custom_objects=custom_objects)
-        # model = tfmot.quantization.keras.quantize_model(model)
         model.summary()
 
-    # Train Model
+    # for debugging custom loss or layers, set to True
+    # model.run_eagerly = True
+
+    # Train model
     name = ""
     storage_path = "./trained_models/semseg_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)

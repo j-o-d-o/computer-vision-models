@@ -17,7 +17,6 @@ def downsample_block(inputs, filters: int, kernel=(3, 3)):
 
 def upsample_bock(inputs, concat_layer, filters: int, kernel=(3, 3), final_layer: bool = False):
     up_layer = Conv2DTranspose(filters, (2, 2), strides=(2, 2), padding='same')(inputs)
-    # up_layer = UpSampling2D()(inputs)
 
     # find crop values for height
     pad_up_layer = up_layer.shape[1] < concat_layer.shape[1]
@@ -63,7 +62,9 @@ def create_model():
     pool4, conv_down_4 = downsample_block(pool3, 48)
     pool5, conv_down_5 = downsample_block(pool4, 64)
 
-    conv = Conv2D(128, (3, 3), activation='relu', padding='same')(pool5)
+    conv = Conv2D(128, (3, 3), padding='same')(pool5)
+    conv = BatchNormalization()(conv)
+    conv = Activation('relu')(conv)
 
     conv_up = upsample_bock(conv,    conv_down_5, 64)
     conv_up = upsample_bock(conv_up, conv_down_4, 48)
