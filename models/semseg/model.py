@@ -65,7 +65,7 @@ def quantize_model(model):
     quant_aware_model = quantize_apply(annotated_model)
     return quant_aware_model
 
-def create_model(quant_aware_training: bool = True):
+def create_model():
     inputs = Input(shape=(Params.INPUT_HEIGHT, Params.INPUT_WIDTH, Params.INTPUT_CHANNELS))
 
     pool1, conv_down_1 = downsample_block(inputs, 32, kernel=(5, 5))
@@ -91,6 +91,4 @@ def create_model(quant_aware_training: bool = True):
     out = Conv2D(len(SEMSEG_CLASS_MAPPING), (1, 1))(conv_up)
 
     model = Model(inputs=[inputs], outputs=[out])
-    if quant_aware_training:
-        model = quantize_model(model)
     return model

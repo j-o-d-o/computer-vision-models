@@ -67,5 +67,5 @@ class SaveToStorage(callbacks.Callback):
             os.makedirs(tf_export_dir)
             self._keras_model.save(tf_export_dir, save_format="tf")
             # save in h5 format
-            tf_export_dir_keras += "/keras.h5"
+            tf_export_dir_keras = tf_export_dir + "/keras.h5"
             self._keras_model.save(tf_export_dir_keras, save_format="h5")

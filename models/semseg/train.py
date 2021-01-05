@@ -1,10 +1,12 @@
 import tensorflow as tf
+import tensorflow_model_optimization as tfmot
 from tensorflow.keras import optimizers, models, metrics
 from datetime import datetime
+from common.processors import AugmentImages
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.callbacks import SaveToStorage
 from common.utils import Logger, Config
-from models.semseg import create_model, Params, ProcessImages, SemsegLoss
+from models.semseg import create_model, quantize_model, Params, ProcessImages, SemsegLoss
 
 print("Using Tensorflow Version: " + tf.__version__)
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -27,7 +29,7 @@ if __name__ == "__main__":
         shuffle_data=True,
     )
 
-    processors = [ProcessImages()]
+    processors = [ProcessImages(), AugmentImages()]
     train_gen = MongoDBGenerator(
         collection_details,
         train_data,
@@ -43,17 +45,19 @@ if __name__ == "__main__":
 
     # Create Model
     loss = SemsegLoss()
-    metrics = []
-    opt = optimizers.Adam(lr=0.0008, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    metrics = [metrics.CategoricalCrossentropy(from_logits=True)]
+    opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
 
-    if Params.LOAD_PATH is None:
-        model: models.Model = create_model()
-        model.compile(optimizer=opt, loss=loss, metrics=metrics)
-        model.summary()
+    if Params.LOAD_MODEL_PATH is not None:
+        with tfmot.quantization.keras.quantize_scope():
+            custom_objects = {"compute_loss": loss}
+            model: models.Model = models.load_model(Params.LOAD_MODEL_PATH, custom_objects=custom_objects, compile=False)
     else:
-        custom_objects = {"compute_loss": loss}
-        model: models.Model = models.load_model(Params.LOAD_PATH, custom_objects=custom_objects)
-        model.summary()
+        model: models.Model = create_model()
+
+    # model = quantize_model(model)
+    model.compile(optimizer=opt, loss=loss, metrics=metrics)
+    model.summary()
 
     # for debugging custom loss or layers, set to True
     # model.run_eagerly = True
