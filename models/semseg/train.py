@@ -64,7 +64,6 @@ if __name__ == "__main__":
     # model.run_eagerly = True
 
     # Train model
-    name = ""
     storage_path = "./trained_models/semseg_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
     callbacks = [SaveToStorage(storage_path, model, False), tensorboard_callback]
