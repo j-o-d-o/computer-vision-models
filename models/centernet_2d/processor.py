@@ -23,11 +23,14 @@ class ProcessImages(IPreProcessor):
         nb_classes = len(OD_CLASS_MAPPING)
         mask_channels = nb_classes + 4 # nb_classes + offset_x + offset_y + width + height
         ground_truth = np.zeros((mask_height, mask_width, mask_channels))
-        # Add objects
+
         for obj in raw_data["objects"]:
-            if obj["box2d"][2] < Params.MIN_BOX_WIDTH or obj["box2d"][3] < Params.MIN_BOX_HEIGHT:
-                # TODO: If filtered out because box is too small, they need to be added to the ignore area
+            # Filter boxes that shouldnt be used for training
+            if (obj["box2d"][2] * roi.scale) < Params.MIN_BOX_WIDTH or (obj["box2d"][3] * roi.scale) < Params.MIN_BOX_HEIGHT:
+                # TODO: If box is filtered out, it should be added to the ignore area!
                 continue
+
+            # Boxe's location and size are scaled to size of output_mask
             scaled_box2d = (np.asarray(obj["box2d"]) * roi.scale) / float(Params.R)
             width = scaled_box2d[2]
             height = scaled_box2d[3]
@@ -43,7 +46,9 @@ class ProcessImages(IPreProcessor):
             # Fill width and height at keypoint
             ground_truth[center_y][center_x][nb_classes + 2] = width
             ground_truth[center_y][center_x][nb_classes + 3] = height
+
             # TODO: Add ignore_flag
+
             # Fill an area that is the size of the object with a gausian distribution for lower loss in that area
             cls_idx = OD_CLASS_IDX[obj["obj_class"]]
             min_x = max(0, center_x - int(width // 2))

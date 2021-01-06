@@ -9,6 +9,7 @@ class Params:
     ########################
     INPUT_WIDTH = 308
     INPUT_HEIGHT = 92
+    OFFSET_BOTTOM = 0
 
     ########################
     ### HYPER PARAMETERS ###
@@ -24,8 +25,8 @@ class Params:
     #######################
     ### FILTERED LABELS ###
     #######################
-    MIN_BOX_WIDTH = 35
-    MIN_BOX_HEIGHT = 35
+    MIN_BOX_WIDTH = 10 # in pixel relative to INPUT size
+    MIN_BOX_HEIGHT = 10 # in pixel relative to INPUT size
 
     ########################
     ### TRAIN PARAMETERS ###
