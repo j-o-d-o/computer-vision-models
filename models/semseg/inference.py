@@ -24,7 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("--img_width", type=int, default=320, help="Width of image, must be model input")
     parser.add_argument("--img_height", type=int, default=130, help="Width of image, must be model input")
     parser.add_argument("--offset_bottom", type=int, default=-200, help="Offset from the bottom in orignal image scale")
-    parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/semseg_2021-01-01-11203/tf_model_20", help="Path to a tensorflow model folder")
+    parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/good_semseg/tf_model_15_best", help="Path to a tensorflow model folder")
     parser.add_argument("--use_edge_tpu", action="store_true", help="EdgeTpu should be used for inference")
     args = parser.parse_args()
 
@@ -60,11 +60,11 @@ if __name__ == "__main__":
     # cap = cv2.VideoCapture('/home/jo/Downloads/train.mp4')
     # while (cap.isOpened()):
     #     ret, img = cap.read()
-
     documents = collection.find({}).limit(3)
     for doc in documents:
         decoded_img = np.frombuffer(doc["img"], np.uint8)
         img = cv2.imdecode(decoded_img, cv2.IMREAD_COLOR)
+        
         img, roi = resize_img(img, args.img_width, args.img_height, args.offset_bottom)
 
         if is_tf_lite:

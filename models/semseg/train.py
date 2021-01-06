@@ -55,6 +55,7 @@ if __name__ == "__main__":
     else:
         model: models.Model = create_model()
 
+    # QAT still hass issues when converting to tflite with int8
     # model = quantize_model(model)
     model.compile(optimizer=opt, loss=loss, metrics=metrics)
     model.summary()

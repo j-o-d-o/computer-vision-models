@@ -23,4 +23,4 @@ class Params:
     ########################
     ### TRAINING FLAGS #####
     ########################
-    LOAD_MODEL_PATH = "/home/jo/git/computer-vision-models/trained_models/semseg_2021-01-05-165551/tf_model_0/keras.h5"
+    LOAD_MODEL_PATH = None
