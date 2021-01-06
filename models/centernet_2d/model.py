@@ -60,12 +60,13 @@ def create_model(input_height, input_width, mask_height, mask_width, nb_classes)
     features = []
     features.append(x)
 
-    x = bottle_neck_block(x, 32, expansion_factor=1, stride=1, bn_alpha=bn_alpha)
-    x = bottle_neck_block(x, 32, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
-    x = bottle_neck_block(x, 32, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
-    x = bottle_neck_block(x, 32, expansion_factor=6, stride=2, bn_alpha=bn_alpha) # / 2
+    x = bottle_neck_block(x, 48, expansion_factor=1, stride=1, bn_alpha=bn_alpha)
+    x = bottle_neck_block(x, 48, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
+    x = bottle_neck_block(x, 48, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
+    x = bottle_neck_block(x, 48, expansion_factor=6, stride=2, bn_alpha=bn_alpha) # / 2
     features.append(x)
 
+    x = bottle_neck_block(x, 64, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
     x = bottle_neck_block(x, 64, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
     x = bottle_neck_block(x, 64, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
     x = bottle_neck_block(x, 64, expansion_factor=6, stride=2, bn_alpha=bn_alpha) # / 2
@@ -77,6 +78,7 @@ def create_model(input_height, input_width, mask_height, mask_width, nb_classes)
     x = bottle_neck_block(x, 98, expansion_factor=6, stride=2, bn_alpha=bn_alpha) # / 2
     features.append(x)
 
+    x = bottle_neck_block(x, 128, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
     x = bottle_neck_block(x, 128, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
     x = bottle_neck_block(x, 128, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
     x = bottle_neck_block(x, 128, expansion_factor=6, stride=2, bn_alpha=bn_alpha) # / 2
@@ -94,22 +96,22 @@ def create_model(input_height, input_width, mask_height, mask_width, nb_classes)
     # features[0]
     features[0] = tf.raw_ops.ResizeNearestNeighbor(images=features[0], size=output_shape)
     # features[1]
-    features[1] = deconv_2d(features[1], filters=16)
+    features[1] = deconv_2d(features[1], filters=32)
     features[1] = tf.raw_ops.ResizeNearestNeighbor(images=features[1], size=output_shape)
     # features[2]
+    features[2] = deconv_2d(features[2], filters=64)
     features[2] = deconv_2d(features[2], filters=32)
-    features[2] = deconv_2d(features[2], filters=16)
     features[2] = tf.raw_ops.ResizeNearestNeighbor(images=features[2], size=output_shape)
     # features[3]
     features[3] = deconv_2d(features[3], filters=64)
+    features[3] = deconv_2d(features[3], filters=64)
     features[3] = deconv_2d(features[3], filters=32)
-    features[3] = deconv_2d(features[3], filters=16)
     features[3] = tf.raw_ops.ResizeNearestNeighbor(images=features[3], size=output_shape)
     # features[4]
     features[4] = deconv_2d(features[4], filters=128)
     features[4] = deconv_2d(features[4], filters=64)
+    features[4] = deconv_2d(features[4], filters=64)
     features[4] = deconv_2d(features[4], filters=32)
-    features[4] = deconv_2d(features[4], filters=16)
     features[4] = tf.raw_ops.ResizeNearestNeighbor(images=features[4], size=output_shape)
 
     features_layer = concatenate([features[0], features[1], features[2], features[3], features[4]], axis=3)
@@ -123,7 +125,7 @@ def create_model(input_height, input_width, mask_height, mask_width, nb_classes)
     output_heatmap = Conv2D(nb_classes, (1, 1), padding="valid", activation=tf.nn.sigmoid,
         kernel_initializer=initializers.RandomNormal(0.01), kernel_regularizer=regularizers.l2(1.25e-5),
         bias_initializer=tf.constant_initializer(-np.log((1.0 - 0.1) / 0.1)), name="heatmap")(output_heatmap)
-    
+
     # Create offset output
     output_offset = Conv2D(32, (3, 3), padding="same", use_bias=False,
         kernel_initializer=initializers.RandomNormal(0.001), kernel_regularizer=regularizers.l2(1.25e-5),

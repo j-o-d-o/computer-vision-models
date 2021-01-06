@@ -22,7 +22,8 @@ if __name__ == "__main__":
     parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
     parser.add_argument("--db", type=str, default="object_detection", help="MongoDB database")
     parser.add_argument("--collection", type=str, default="kitti_test", help="MongoDB collection")
-    parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/centernet2d_29-11-2020-13-13-56/tf_model_19/model_quant_int8_edgetpu.tflite", help="Path to a tensorflow model folder")
+    parser.add_argument("--offset_bottom", type=int, default=-130, help="Offset from the bottom in orignal image scale")
+    parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/centernet2d_2021-01-06-114434/tf_model_31_best", help="Path to a tensorflow model folder")
     parser.add_argument("--use_edge_tpu", action="store_true", help="EdgeTpu should be used for inference")
     args = parser.parse_args()
 
@@ -58,11 +59,16 @@ if __name__ == "__main__":
         output_shape = model.output.shape
         print("Using Tensorflow")
 
+    # alternative data source, mp4 video
+    # cap = cv2.VideoCapture('/home/jo/Downloads/train.mp4')
+    # while (cap.isOpened()):
+    #     ret, img = cap.read()
     documents = collection.find({}).limit(20)
     for doc in documents:
         decoded_img = np.frombuffer(doc["img"], np.uint8)
         img = cv2.imdecode(decoded_img, cv2.IMREAD_COLOR)
-        input_img, roi = resize_img(img, input_shape[2], input_shape[1])
+
+        input_img, roi = resize_img(img, input_shape[2], input_shape[1], offset_bottom=args.offset_bottom)
 
         if is_tf_lite:
             input_img = input_img.astype(np.float32)
@@ -87,6 +93,7 @@ if __name__ == "__main__":
             cv2.rectangle(img, obj["top_left"], obj["bottom_right"], (color[2], color[1], color[0]), 1)
 
         print(str(elapsed_time) + " s")
-        cv2.imshow("Input Image with Objects", img)
+        cv2.imshow("Org Image with Objects", img)
+        cv2.imshow("Input Image", input_img)
         cv2.imshow("Heatmap", heatmap)
         cv2.waitKey(0)

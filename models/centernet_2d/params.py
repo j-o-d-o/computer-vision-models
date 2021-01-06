@@ -25,8 +25,8 @@ class Params:
     #######################
     ### FILTERED LABELS ###
     #######################
-    MIN_BOX_WIDTH = 5 # in pixel relative to INPUT size
-    MIN_BOX_HEIGHT = 5 # in pixel relative to INPUT size
+    MIN_BOX_WIDTH = 4 # in pixel relative to INPUT size
+    MIN_BOX_HEIGHT = 4 # in pixel relative to INPUT size
 
     ########################
     ### TRAIN PARAMETERS ###

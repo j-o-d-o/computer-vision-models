@@ -44,6 +44,7 @@ if __name__ == "__main__":
 
     nb_classes = len(OD_CLASS_MAPPING)
     loss = Centernet2DLoss(nb_classes, Params.LOSS_SIZE_WEIGHT, Params.LOSS_OFFSET_WEIGHT, Params.FOCAL_LOSS_ALPHA, Params.FOCAL_LOSS_BETA)
+    metrics = [loss.size_loss, loss.offset_loss, loss.class_focal_loss]
     opt = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07) 
 
     if Params.LOAD_PATH is None:
@@ -54,7 +55,7 @@ if __name__ == "__main__":
             int(Params.INPUT_WIDTH // Params.R),
             nb_classes
         )
-        model.compile(optimizer=opt, loss=loss)
+        model.compile(optimizer=opt, loss=loss, metrics=metrics)
     else:
         custom_objects = {"compute_loss": loss}
         model: tf.keras.models.Model = models.load_model(Params.LOAD_PATH, custom_objects=custom_objects)
@@ -65,7 +66,7 @@ if __name__ == "__main__":
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
     callbacks = [SaveToStorage(storage_path, model, False), tensorboard_callback]
 
-     model.fit(
+    model.fit(
         train_gen,
         validation_data=val_gen,
         epochs=Params.NUM_EPOCH,
