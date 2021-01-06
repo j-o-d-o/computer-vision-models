@@ -1,7 +1,9 @@
 import tensorflow as tf
+from datetime import datetime
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.utils import Logger, Config
 from common.callbacks import SaveToStorage
+from common.processors import AugmentImages
 from data.od_spec import OD_CLASS_MAPPING
 from models.centernet_2d import ProcessImages, Params, Centernet2DLoss, create_model
 
@@ -26,7 +28,7 @@ if __name__ == "__main__":
         shuffle_data=True
     )
 
-    processors = [ProcessImages()]
+    processors = [ProcessImages(), AugmentImages()]
     train_gen = MongoDBGenerator(
         collection_details,
         train_data,
@@ -53,21 +55,23 @@ if __name__ == "__main__":
             nb_classes
         )
         model.compile(optimizer=opt, loss=loss)
-        # model.summary()
     else:
         custom_objects = {"compute_loss": loss}
         model: tf.keras.models.Model = models.load_model(Params.LOAD_PATH, custom_objects=custom_objects)
-        # model.summary()
+    model.summary()
 
     # Train Model
-    callbacks = [(SaveToStorage("./trained_models", "centernet2d", model, False))]
-    model.fit_generator(
-        generator=train_gen,
+    storage_path = "./trained_models/centernet2d_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
+    callbacks = [SaveToStorage(storage_path, model, False), tensorboard_callback]
+
+     model.fit(
+        train_gen,
         validation_data=val_gen,
         epochs=Params.NUM_EPOCH,
         verbose=1,
-        callbacks=[callbacks],
+        callbacks=callbacks,
         initial_epoch=0,
         use_multiprocessing=False,
-        workers=2,
+        workers=3,
     )

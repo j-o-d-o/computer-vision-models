@@ -10,10 +10,10 @@ def deconv_2d(inputs, filters=128, kernel_size=(3, 3), strides=(2, 2), padding="
     layer = Conv2DTranspose(filters, kernel_size, strides=strides, padding=padding, use_bias=False,
         kernel_initializer="he_uniform", kernel_regularizer=regularizers.l2(1.25e-5))(inputs)
     layer = BatchNormalization()(layer)
-    layer = ReLU()(layer)
+    layer = ReLU(6.)(layer)
     return layer
 
-def _bottle_neck_block(inputs, filters: int, expansion_factor: int = 6, stride=1, bn_alpha=1):
+def bottle_neck_block(inputs, filters: int, expansion_factor: int = 6, stride=1, bn_alpha=1):
   filters = max(2, int(filters * bn_alpha))
   x = inputs
 
@@ -39,6 +39,17 @@ def _bottle_neck_block(inputs, filters: int, expansion_factor: int = 6, stride=1
 
   return x
 
+def quantize_model(model):
+    def apply_quantization_annotation(layer):
+        # Add all layers to the tuple that currently do not have any quantization support
+        if not isinstance(layer, (Conv2DTranspose)):
+            return quantize_annotate_layer(layer)
+        return layer
+
+    annotated_model = clone_model(model, clone_function=apply_quantization_annotation)
+    quant_aware_model = quantize_apply(annotated_model)
+    return quant_aware_model
+
 def create_model(input_height, input_width, mask_height, mask_width, nb_classes):
     bn_alpha = 1
     inputs = Input(shape=(input_height, input_width, 3))
@@ -49,26 +60,26 @@ def create_model(input_height, input_width, mask_height, mask_width, nb_classes)
     features = []
     features.append(x)
 
-    x = _bottle_neck_block(x, 32, expansion_factor=1, stride=1, bn_alpha=bn_alpha)
-    x = _bottle_neck_block(x, 32, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
-    x = _bottle_neck_block(x, 32, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
-    x = _bottle_neck_block(x, 32, expansion_factor=6, stride=2, bn_alpha=bn_alpha) # / 2
+    x = bottle_neck_block(x, 32, expansion_factor=1, stride=1, bn_alpha=bn_alpha)
+    x = bottle_neck_block(x, 32, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
+    x = bottle_neck_block(x, 32, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
+    x = bottle_neck_block(x, 32, expansion_factor=6, stride=2, bn_alpha=bn_alpha) # / 2
     features.append(x)
 
-    x = _bottle_neck_block(x, 64, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
-    x = _bottle_neck_block(x, 64, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
-    x = _bottle_neck_block(x, 64, expansion_factor=6, stride=2, bn_alpha=bn_alpha) # / 2
+    x = bottle_neck_block(x, 64, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
+    x = bottle_neck_block(x, 64, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
+    x = bottle_neck_block(x, 64, expansion_factor=6, stride=2, bn_alpha=bn_alpha) # / 2
     features.append(x)
 
-    x = _bottle_neck_block(x, 98, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
-    x = _bottle_neck_block(x, 98, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
-    x = _bottle_neck_block(x, 98, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
-    x = _bottle_neck_block(x, 98, expansion_factor=6, stride=2, bn_alpha=bn_alpha) # / 2
+    x = bottle_neck_block(x, 98, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
+    x = bottle_neck_block(x, 98, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
+    x = bottle_neck_block(x, 98, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
+    x = bottle_neck_block(x, 98, expansion_factor=6, stride=2, bn_alpha=bn_alpha) # / 2
     features.append(x)
 
-    x = _bottle_neck_block(x, 128, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
-    x = _bottle_neck_block(x, 128, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
-    x = _bottle_neck_block(x, 128, expansion_factor=6, stride=2, bn_alpha=bn_alpha) # / 2
+    x = bottle_neck_block(x, 128, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
+    x = bottle_neck_block(x, 128, expansion_factor=6, stride=1, bn_alpha=bn_alpha)
+    x = bottle_neck_block(x, 128, expansion_factor=6, stride=2, bn_alpha=bn_alpha) # / 2
     features.append(x)
 
     # features sizes with input (92, 308)

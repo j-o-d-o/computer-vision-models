@@ -14,7 +14,7 @@ class ProcessImages(IPreProcessor):
         # Add input_data
         img_encoded = np.frombuffer(raw_data["img"], np.uint8)
         input_data = cv2.imdecode(img_encoded, cv2.IMREAD_COLOR)
-        input_data, roi = resize_img(input_data, Params.INPUT_WIDTH, Params.INPUT_HEIGHT)
+        input_data, roi = resize_img(input_data, Params.INPUT_WIDTH, Params.INPUT_HEIGHT, offset_bottom=Params.OFFSET_BOTTOM)
         input_data = input_data.astype(np.float32)
 
         # Add ground_truth mask/heatmap
