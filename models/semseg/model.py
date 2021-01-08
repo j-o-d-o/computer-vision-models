@@ -66,8 +66,8 @@ def quantize_model(model):
     quant_aware_model = quantize_apply(annotated_model)
     return quant_aware_model
 
-def create_model():
-    inputs = Input(shape=(Params.INPUT_HEIGHT, Params.INPUT_WIDTH, Params.INTPUT_CHANNELS))
+def create_model(input_height, input_width):
+    inputs = Input(shape=(input_height, input_width, Params.INTPUT_CHANNELS))
 
     pool1, conv_down_1 = downsample_block(inputs, 32, kernel=(5, 5))
     pool2, conv_down_2 = downsample_block(pool1, 48)

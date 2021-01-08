@@ -45,15 +45,15 @@ if __name__ == "__main__":
 
     # Create Model
     loss = SemsegLoss()
-    metrics = []
-    opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    metrics = [metrics.CategoricalCrossentropy(from_logits=True)]
+    opt = optimizers.Adam(lr=0.0008, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
 
     if Params.LOAD_MODEL_PATH is not None:
         with tfmot.quantization.keras.quantize_scope():
             custom_objects = {"compute_loss": loss}
             model: models.Model = models.load_model(Params.LOAD_MODEL_PATH, custom_objects=custom_objects, compile=False)
     else:
-        model: models.Model = create_model()
+        model: models.Model = create_model(Params.INPUT_HEIGHT, Params.INPUT_WIDTH)
 
     # QAT still hass issues when converting to tflite with int8
     # model = quantize_model(model)
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     # Train model
     storage_path = "./trained_models/semseg_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
-    callbacks = [SaveToStorage(storage_path, model, False), tensorboard_callback]
+    callbacks = [SaveToStorage(storage_path, model, True), tensorboard_callback]
 
     model.fit(
         train_gen,
