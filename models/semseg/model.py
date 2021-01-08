@@ -1,15 +1,16 @@
 from tensorflow_model_optimization.quantization.keras import quantize_annotate_layer, quantize_apply
-from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, Dropout, concatenate, ZeroPadding2D, BatchNormalization, Activation
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, ZeroPadding2D, BatchNormalization, Activation, Dropout
 from tensorflow.keras.models import Model, clone_model
+from tensorflow.keras.regularizers import l2
 from data.semseg_spec import SEMSEG_CLASS_MAPPING
 from models.semseg.params import Params
 
 
 def downsample_block(inputs, filters: int, kernel=(3, 3)):
-    conv1 = Conv2D(filters, kernel, padding='same')(inputs)
+    conv1 = Conv2D(filters, kernel, padding='same', kernel_regularizer=l2(l=0.0001))(inputs)
     conv1 = BatchNormalization()(conv1)
     conv1 = Activation('relu')(conv1)
-    conv2 = Conv2D(filters, kernel, padding='same')(conv1)
+    conv2 = Conv2D(filters, kernel, padding='same', kernel_regularizer=l2(l=0.0001))(conv1)
     conv2 = BatchNormalization()(conv2)
     conv2 = Activation('relu')(conv2)
     pool = MaxPooling2D(pool_size=(2, 2), padding='same')(conv2)
@@ -46,7 +47,7 @@ def upsample_bock(inputs, concat_layer, filters: int, kernel=(3, 3), final_layer
     conv1 = BatchNormalization()(conv1)
     conv1 = Activation('relu')(conv1)
     if final_layer:
-        conv2 = Conv2D(filters, kernel, padding='same')(conv1)
+        conv2 = Conv2D(filters, kernel, padding='same', kernel_regularizer=l2(l=0.0001))(conv1)
     else:
         conv2 = Conv2D(filters, kernel, padding='valid')(conv1)
     conv2 = BatchNormalization()(conv2)
@@ -73,22 +74,25 @@ def create_model():
     pool3, conv_down_3 = downsample_block(pool2, 64)
     pool4, conv_down_4 = downsample_block(pool3, 128)
     pool5, conv_down_5 = downsample_block(pool4, 254)
+    pool5 = Dropout(0.4)(pool5)
 
     conv = Conv2D(254, (3, 3), padding='same')(pool5)
     conv = BatchNormalization()(conv)
     conv = Activation('relu')(conv)
+    conv = Dropout(0.4)(conv)
 
-    conv_up = upsample_bock(conv,    conv_down_5, 128)
-    conv_up = upsample_bock(conv_up, conv_down_4, 64)
+    conv_up = upsample_bock(conv,    conv_down_5, 254)
     conv_up = Dropout(0.4)(conv_up)
-    conv_up = upsample_bock(conv_up, conv_down_3, 48)
+    conv_up = upsample_bock(conv_up, conv_down_4, 128)
+    conv_up = Dropout(0.4)(conv_up)
+    conv_up = upsample_bock(conv_up, conv_down_3, 64)
     conv_up = Dropout(0.35)(conv_up)
     conv_up = upsample_bock(conv_up, conv_down_2, 32)
     conv_up = Dropout(0.3)(conv_up)
     conv_up = upsample_bock(conv_up, conv_down_1, 16, final_layer=True)
     conv_up = Dropout(0.25)(conv_up)
 
-    out = Conv2D(len(SEMSEG_CLASS_MAPPING), (1, 1))(conv_up)
+    out = Conv2D(len(SEMSEG_CLASS_MAPPING), (1, 1), kernel_regularizer=l2(l=0.0001))(conv_up)
 
     model = Model(inputs=[inputs], outputs=[out])
     return model
