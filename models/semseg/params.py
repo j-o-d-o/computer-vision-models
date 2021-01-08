@@ -7,9 +7,9 @@ class Params:
     ########################
     ##### INPUT CONFIG #####
     ########################
-    OFFSET_BOTTOM = -200 # relative to org img size
+    OFFSET_BOTTOM = -260 # relative to org img size
     INPUT_WIDTH = 320
-    INPUT_HEIGHT = 130
+    INPUT_HEIGHT = 90
     INTPUT_CHANNELS = 3
     MASK_WIDTH = INPUT_WIDTH
     MASK_HEIGHT = INPUT_HEIGHT
