@@ -27,7 +27,7 @@ def main(model_path: str, con_str: str, db_str: str, collection_str: str, offset
   # Load model for input size and in case of .h5 also for conversion 
   model = None
   with tfmot.quantization.keras.quantize_scope():
-      model = tf.keras.models.load_model(model_path, compile=False)
+    model = tf.keras.models.load_model(model_path, compile=False)
   
   # Get path were the tflite model should be saved
   save_dir = model_path
@@ -91,11 +91,11 @@ def main(model_path: str, con_str: str, db_str: str, collection_str: str, offset
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description="Convert and quantize tensorflow model to tflite and edgetpu")
-  parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/good_semseg/tf_model_15_best", help="Path to a tensorflow model folder")
+  parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/semseg_2021-01-07-115540/tf_model_36_best", help="Path to a tensorflow model folder")
   parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
   parser.add_argument("--db", type=str, default="semseg", help="MongoDB database")
   parser.add_argument("--collection", type=str, default="comma10k", help="MongoDB collection")
-  parser.add_argument("--offset_bottom", type=int, default=-200, help="Offset from the bottom in orignal image scale")
+  parser.add_argument("--offset_bottom", type=int, default=-260, help="Offset from the bottom in orignal image scale")
   parser.add_argument("--quantize", action="store_true", help="Quantize model using input data")
   parser.add_argument("--compile_edge_tpu", action="store_true", help="Compile TFLite model also for EdgeTpu")
   args = parser.parse_args()
