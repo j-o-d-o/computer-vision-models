@@ -12,7 +12,7 @@ print("Using Tensorflow Version: " + tf.__version__)
 gpus = tf.config.experimental.list_physical_devices('GPU')
 assert len(gpus) > 0, "Not enough GPU hardware devices available"
 tf.config.experimental.set_memory_growth(gpus[0], True)
-tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=4096)])
+tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=4864)])
 
 
 if __name__ == "__main__":
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     # Create Data Generators
     train_data, val_data = load_ids(
         collection_details,
-        data_split=(77, 23),
+        data_split=(78, 22),
         shuffle_data=True,
     )
 
@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     # Create Model
     loss = SemsegLoss()
-    metrics = [metrics.CategoricalCrossentropy(from_logits=True)]
+    metrics = []
     opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
 
     if Params.LOAD_MODEL_PATH is not None:
@@ -75,6 +75,5 @@ if __name__ == "__main__":
         verbose=1,
         callbacks=callbacks,
         initial_epoch=0,
-        use_multiprocessing=False,
         workers=2,
     )
