@@ -9,10 +9,10 @@ class Params:
     ########################
     OFFSET_BOTTOM = -260 # relative to org img size
     INPUT_WIDTH = 320
-    INPUT_HEIGHT = 90
+    INPUT_HEIGHT = 92
     INTPUT_CHANNELS = 3
-    MASK_WIDTH = INPUT_WIDTH
-    MASK_HEIGHT = INPUT_HEIGHT
+    MASK_WIDTH = 320
+    MASK_HEIGHT = 92
 
     ########################
     ### TRAIN PARAMETERS ###
@@ -23,4 +23,4 @@ class Params:
     ########################
     ### TRAINING FLAGS #####
     ########################
-    LOAD_MODEL_PATH = None
+    LOAD_MODEL_PATH = "/home/jo/git/computer-vision-models/trained_models/semseg_2021-01-09-152324/tf_model_8"
