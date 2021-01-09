@@ -34,7 +34,7 @@ class SaveToStorage(callbacks.Callback):
     def on_train_begin(self, logs=None):
         super().on_train_begin(logs)
         if self._save_initial_weights:
-            self.save()
+            self.save(save_as_initial=True)
 
     def on_epoch_begin(self, epoch, logs=None):
         self._curr_epoch = epoch
@@ -45,7 +45,7 @@ class SaveToStorage(callbacks.Callback):
         save_tf = True
         self.save(save_tf)
 
-    def save(self, save_tf: bool = True):
+    def save(self, save_tf: bool = True, save_as_initial: bool = False):
         epoch = self._curr_epoch
 
         if epoch <= 0:
@@ -59,7 +59,7 @@ class SaveToStorage(callbacks.Callback):
             sys.stdout = stdout_origin
 
         if save_tf:
-            if epoch < 0:
+            if save_as_initial:
                 epoch = "init"
 
             # save in SaveModel format
