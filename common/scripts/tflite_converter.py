@@ -46,7 +46,7 @@ def main(model_path: str, con_str: str, db_str: str, collection_str: str, offset
     # MongoDB connection for sample dataset
     client = MongoClient(con_str)
     collection = client[db_str][collection_str]
-    documents = collection.find({}).limit(1000)
+    documents = collection.find({}).limit(600)
 
     # Get the model input size for resizing images
     input_shape = model.input.shape
@@ -91,7 +91,7 @@ def main(model_path: str, con_str: str, db_str: str, collection_str: str, offset
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description="Convert and quantize tensorflow model to tflite and edgetpu")
-  parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/semseg_2021-01-07-115540/tf_model_36_best", help="Path to a tensorflow model folder")
+  parser.add_argument("--model_path", type=str, default="/path/to/tf_model(.h5)", help="Path to a tensorflow model folder (SaveModel and H5 format supported)")
   parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
   parser.add_argument("--db", type=str, default="semseg", help="MongoDB database")
   parser.add_argument("--collection", type=str, default="comma10k", help="MongoDB collection")
@@ -101,7 +101,7 @@ if __name__ == "__main__":
   args = parser.parse_args()
 
   # Manually set flags e.g. when debugging
-  # args.compile_edge_tpu = False
-  # args.quantize = False
+  # args.compile_edge_tpu = True
+  # args.quantize = True
 
   main(args.model_path, args.conn, args.db, args.collection, args.offset_bottom, args.quantize, args.compile_edge_tpu)
