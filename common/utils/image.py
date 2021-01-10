@@ -79,15 +79,12 @@ def to_3channel(raw_mask_output, class_mapping):
         # find index of highest value in the one_hot_encoded_arr
         nb_classes = len(class_mapping)
         cls_idx = np.argmax(one_hot_encoded_arr[:nb_classes])
-        max_val = one_hot_encoded_arr[cls_idx]
-        # assert(max_val >= 0.0 and max_val <= 1.0)
-        max_val = max(0.0, min(1.0, max_val))
         # convert index to hex value
         cls_colour = list(class_mapping.items())[int(round(cls_idx))][1]
         # fill new array with BGR values
         new_i = i * 3
-        array[new_i] = cls_colour[0] * max_val
-        array[new_i + 1] = cls_colour[1] * max_val
-        array[new_i + 2] = cls_colour[2] * max_val
+        array[new_i] = cls_colour[0]
+        array[new_i + 1] = cls_colour[1]
+        array[new_i + 2] = cls_colour[2]
 
     return array.reshape((raw_mask_output.shape[0], raw_mask_output.shape[1], 3))

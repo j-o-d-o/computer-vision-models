@@ -1,98 +1,103 @@
+import tensorflow as tf
 from tensorflow_model_optimization.quantization.keras import quantize_annotate_layer, quantize_apply
-from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, ZeroPadding2D, BatchNormalization, Activation, Dropout
+from tensorflow.keras.layers import Input, Conv2D, Add, BatchNormalization, ReLU, MaxPooling2D, Conv2DTranspose, Concatenate, ZeroPadding2D, Dropout, DepthwiseConv2D
 from tensorflow.keras.models import Model, clone_model
 from tensorflow.keras.regularizers import l2
 from data.semseg_spec import SEMSEG_CLASS_MAPPING
-from models.semseg.params import Params
 
 
-def downsample_block(inputs, filters: int, kernel=(3, 3)):
-    conv1 = Conv2D(filters, kernel, padding='same', kernel_regularizer=l2(l=0.0001))(inputs)
-    conv1 = BatchNormalization()(conv1)
-    conv1 = Activation('relu')(conv1)
-    conv2 = Conv2D(filters, kernel, padding='same', kernel_regularizer=l2(l=0.0001))(conv1)
-    conv2 = BatchNormalization()(conv2)
-    conv2 = Activation('relu')(conv2)
-    pool = MaxPooling2D(pool_size=(2, 2), padding='same')(conv2)
-    return pool, conv2
+def __bottle_neck_block(inputs: tf.Tensor, filters: int, expansion_factor: int = 6, dilation_rate: int = 1, downsample: bool =False) -> tf.Tensor:
+    """
+    Bottleneck blocks (As introduced in MobileNet(v2): https://arxiv.org/abs/1801.04381) and extended in functionallity to downsample and to add dilation rates
+    :params inputs: Input tensor
+    :params filters: Number of filters used
+    :params expansion_factor: Factor that multiplies with the number of filters for expansion (1, 1) convolution
+    :params dilation_rate: Dialation rate that is used on the Depthwise convolution to increase receptive field
+    :params downsample: If True the the layers will be downsampled by 2 with stride 2
+    :return: Resulting tensor
+    """
+    stride = 1 if not downsample else 2
+    skip = inputs
+    # Expansion
+    x = Conv2D(filters * expansion_factor, kernel_size=1, use_bias=False, padding='same')(inputs)
+    x = BatchNormalization()(x)
+    x = ReLU(6.)(x)
+    # Convolution
+    x = DepthwiseConv2D(kernel_size=3, strides=stride, dilation_rate=dilation_rate, use_bias=False, padding='same')(x)
+    x = BatchNormalization()(x)
+    x = ReLU(6.)(x)
+    # Project
+    x = Conv2D(filters, kernel_size=1, use_bias=False, padding='same')(x)
+    x = BatchNormalization()(x)
+    # Residual connection
+    input_filters = int(inputs.shape[-1])
+    if downsample:
+        skip = Conv2D(filters, kernel_size=3, strides=2, padding="same")(skip)
+    elif input_filters != filters:
+        skip = Conv2D(filters, (1, 1), padding="same")(skip)
+    x = Add()([skip, x])
+    # TODO: Remove these two layers
+    x = BatchNormalization()(x)
+    x = ReLU()(x)
+    return x
 
 
-def upsample_bock(inputs, concat_layer, filters: int, kernel=(3, 3), final_layer: bool = False):
-    up_layer = Conv2DTranspose(filters, (2, 2), strides=(2, 2), padding='same')(inputs)
+def _upsample_block(inputs: tf.Tensor, concat: tf.Tensor, filters: int) -> tf.Tensor:
+    """
+    Upsample block will upsample one tensor x2 and concatenate with another tensor of the size
+    :params inputs: Input tensor to be upsampled by x2
+    :params concat: Tensor that will be concatenated, must be x2 size of inputs tensor
+    :params filters: Number filters that are used for all convolutions
+    :return: Resulting Tensor
+    """
+    # Upsample input
+    x = Conv2DTranspose(filters, kernel_size=2, strides=(2, 2), padding='same')(inputs)
+    x = BatchNormalization()(x)
+    x = ReLU()(x)
+    # Concatenate
+    concat = Conv2D(filters, kernel_size=1)(concat)
+    x = Concatenate()([x, concat])
+    # Conv
+    x = Conv2D(filters, kernel_size=3, padding='same')(x)
+    x = BatchNormalization()(x)
+    x = ReLU()(x)
+    return x
 
-    # find crop values for height
-    pad_up_layer = up_layer.shape[1] < concat_layer.shape[1]
-    diff_height = abs(up_layer.shape[1] - concat_layer.shape[1])
-    add_uneven_height = 0
-    if diff_height % 2 != 0:
-        add_uneven_height = 1
-        diff_height -= 1 # make it even
-    diff_height_tuple = (int(diff_height * 0.5) + add_uneven_height, int(diff_height * 0.5))
-    # find crop values for width
-    diff_width = abs(up_layer.shape[2] - concat_layer.shape[2])
-    add_uneven_width = 0
-    if diff_width % 2 != 0:
-        add_uneven_width = 1
-        diff_width -= 1 # make it even
-    diff_width_tuple = (int(diff_width * 0.5), int(diff_width * 0.5) + add_uneven_width)
+def create_model(input_height: int, input_width: int) -> tf.keras.Model:
+    """
+    Create a semseg model
+    :param input_height: Height of the input image
+    :param input_width: Width of the input image
+    :return: Semseg Keras Model
+    """
+    inputs = [Input(shape=(input_height, input_width, 3))]
 
-    if pad_up_layer:
-        padded_up_layer = ZeroPadding2D((diff_height_tuple, diff_width_tuple))(up_layer)
-        up = concatenate([padded_up_layer, concat_layer], axis=3)
-    else:
-        padded_concat_layer = ZeroPadding2D((diff_height_tuple, diff_width_tuple))(concat_layer)
-        up = concatenate([up_layer, padded_concat_layer], axis=3)
+    fs = 12 # filter scaling
+    fms = [] # feature maps
 
-    conv1 = Conv2D(filters*2, kernel, padding='same')(up)
-    conv1 = BatchNormalization()(conv1)
-    conv1 = Activation('relu')(conv1)
-    if final_layer:
-        conv2 = Conv2D(filters, kernel, padding='same', kernel_regularizer=l2(l=0.0001))(conv1)
-    else:
-        conv2 = Conv2D(filters, kernel, padding='valid')(conv1)
-    conv2 = BatchNormalization()(conv2)
-    conv2 = Activation('relu')(conv2)
-    return conv2
+    # Feature maps downsampling
+    x = _bottle_neck_block(inputs[0], 1 * fs)
+    x = _bottle_neck_block(inputs[0], 1 * fs)
+    fms.append(x)
+    x = _bottle_neck_block(x, 1 * fs, downsample=True)
+    x = _bottle_neck_block(x, 2 * fs)
+    fms.append(x)
 
+    # Dialated layers to avoid further downsampling while still having large respetive field
+    x = _bottle_neck_block(x, 2 * fs, downsample=True)
+    d1 = _bottle_neck_block(x, 2 * fs, dilation_rate=3)
+    d2 = _bottle_neck_block(x, 2 * fs, dilation_rate=6)
+    d3 = _bottle_neck_block(x, 2 * fs, dilation_rate=9)
+    d4 = _bottle_neck_block(x, 2 * fs, dilation_rate=12)
+    x = Concatenate()([d1, d2, d3, d4])
+    x = Conv2D(2 * fs, kernel_size=1, padding="same")(x)
+    fms.append(x)
 
-def quantize_model(model):
-    def apply_quantization_annotation(layer):
-        # Add all layers to the tuple that currently do not have any quantization support
-        if not isinstance(layer, (Conv2DTranspose)):
-            return quantize_annotate_layer(layer)
-        return layer
+    # Upsampling the blocks to original image size / mask size
+    x = _upsample_block(fms[2], fms[1], 2 * fs)
+    x = _upsample_block(x, fms[0], 2 * fs)
 
-    annotated_model = clone_model(model, clone_function=apply_quantization_annotation)
-    quant_aware_model = quantize_apply(annotated_model)
-    return quant_aware_model
+    out = Conv2D(len(SEMSEG_CLASS_MAPPING), kernel_size=1, kernel_regularizer=l2(l=0.0001))(x)
 
-def create_model(input_height, input_width):
-    inputs = Input(shape=(input_height, input_width, Params.INTPUT_CHANNELS))
-
-    pool1, conv_down_1 = downsample_block(inputs, 32, kernel=(5, 5))
-    pool2, conv_down_2 = downsample_block(pool1, 48)
-    pool3, conv_down_3 = downsample_block(pool2, 64)
-    pool4, conv_down_4 = downsample_block(pool3, 128)
-    pool5, conv_down_5 = downsample_block(pool4, 254)
-    pool5 = Dropout(0.4)(pool5)
-
-    conv = Conv2D(254, (3, 3), padding='same')(pool5)
-    conv = BatchNormalization()(conv)
-    conv = Activation('relu')(conv)
-    conv = Dropout(0.4)(conv)
-
-    conv_up = upsample_bock(conv,    conv_down_5, 254)
-    conv_up = Dropout(0.4)(conv_up)
-    conv_up = upsample_bock(conv_up, conv_down_4, 128)
-    conv_up = Dropout(0.4)(conv_up)
-    conv_up = upsample_bock(conv_up, conv_down_3, 64)
-    conv_up = Dropout(0.35)(conv_up)
-    conv_up = upsample_bock(conv_up, conv_down_2, 32)
-    conv_up = Dropout(0.3)(conv_up)
-    conv_up = upsample_bock(conv_up, conv_down_1, 16, final_layer=True)
-    conv_up = Dropout(0.25)(conv_up)
-
-    out = Conv2D(len(SEMSEG_CLASS_MAPPING), (1, 1), kernel_regularizer=l2(l=0.0001))(conv_up)
-
-    model = Model(inputs=[inputs], outputs=[out])
+    model = Model(inputs=inputs, outputs=[out])
     return model
