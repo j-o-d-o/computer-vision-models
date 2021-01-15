@@ -23,4 +23,4 @@ class Params:
     ########################
     ### TRAINING FLAGS #####
     ########################
-    LOAD_MODEL_PATH = "/home/jo/git/computer-vision-models/trained_models/semseg_2021-01-09-152324/tf_model_8"
+    LOAD_MODEL_PATH = None

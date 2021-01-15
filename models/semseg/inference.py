@@ -24,7 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("--img_width", type=int, default=320, help="Width of image, must be model input")
     parser.add_argument("--img_height", type=int, default=92, help="Width of image, must be model input")
     parser.add_argument("--offset_bottom", type=int, default=-120, help="Offset from the bottom in orignal image scale")
-    parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/semseg_2021-01-09-145738/tf_model_0/model_quant_edgetpu.tflite", help="Path to a tensorflow model folder")
+    parser.add_argument("--model_path", type=str, default="/path/to/tf_model_x/model_quant_edgetpu.tflite", help="Path to a tensorflow model folder")
     parser.add_argument("--use_edge_tpu", action="store_true", help="EdgeTpu should be used for inference")
     args = parser.parse_args()
 
@@ -61,6 +61,7 @@ if __name__ == "__main__":
     # cap = cv2.VideoCapture('/path/to/video.mp4')
     # while (cap.isOpened()):
     #     ret, img = cap.read()
+
     documents = collection.find({}).limit(3)
     for doc in documents:
         decoded_img = np.frombuffer(doc["img"], np.uint8)
@@ -88,6 +89,6 @@ if __name__ == "__main__":
 
         print(str(elapsed_time) + " s")
 
-        cv2.imshow("Input Image", img)
+
         cv2.imshow("Semseg Image", semseg_img)
         cv2.waitKey(0)

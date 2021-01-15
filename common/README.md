@@ -19,18 +19,3 @@ sudo apt-get install edgetpu-compiler
 # compile tflite model to tflite model for edgetpu
 edgetpu-compiler path/to/model.tflite
 ```
-
-### keras_onnx_convert.py
-Converting a keras model to ONNX format. In order to use TensorRT on C++ side for inference the Tensorflow
-SavedModel or Keras Model has to be converted to ONNX Format (https://github.com/onnx/onnx).
-
-For Keras model just use the `keras_onnx_convert.py` script.
-
-For Tensorflow SaveModel format use the command line: (currently has some issues, probably have to wait for Tensorflow 2 support)
-```bash
->> conda activate object-detection
->> python -m tf2onnx.convert\
-    --saved-model /home/jodo/trained_models/kitti_mobile_ssd_17-12-2019-10-42-43/tf_model_15\
-    --output /home/jodo/trained_models/kitti_mobile_ssd_17-12-2019-10-42-43/tf_model_15/model.onnx\
-    --verbose
-```

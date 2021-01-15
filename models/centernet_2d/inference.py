@@ -23,7 +23,7 @@ if __name__ == "__main__":
     parser.add_argument("--db", type=str, default="object_detection", help="MongoDB database")
     parser.add_argument("--collection", type=str, default="kitti_test", help="MongoDB collection")
     parser.add_argument("--offset_bottom", type=int, default=-130, help="Offset from the bottom in orignal image scale")
-    parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/centernet2d_2021-01-06-114434/tf_model_31_best", help="Path to a tensorflow model folder")
+    parser.add_argument("--model_path", type=str, default="/path/to/tf_model_x", help="Path to a tensorflow model folder")
     parser.add_argument("--use_edge_tpu", action="store_true", help="EdgeTpu should be used for inference")
     args = parser.parse_args()
 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
         print("Using Tensorflow")
 
     # alternative data source, mp4 video
-    # cap = cv2.VideoCapture('/home/jo/Downloads/train.mp4')
+    # cap = cv2.VideoCapture('/path/to/example.mp4')
     # while (cap.isOpened()):
     #     ret, img = cap.read()
     documents = collection.find({}).limit(20)
