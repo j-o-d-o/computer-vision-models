@@ -1,71 +1,55 @@
-from data.carla import Params
-import os
-import sys
-import random
-import time
-import cv2
+from data.carla import Sensors, World, InfoText
+import pygame
+import carla
 import numpy as np
 
-# Importing carla
-carla_egg_file = os.path.join(Params.CARLA_BASE_PATH, 'PythonAPI/carla/dist/carla-0.9.11-py3.7-%s.egg' % ('win-amd64' if os.name == 'nt' else 'linux-x86_64'))
-if not os.path.isfile(carla_egg_file):
-    print("WARNING: Carla egg file not found at %s" % carla_egg_file)
-sys.path.append(carla_egg_file)
-import carla
 
+class Game():
+    def __init__(self):
+        pygame.init()
+        pygame.font.init()
 
-def show_rgb(image):
-    img = np.array(image.raw_data).astype('uint8')
-    img = img.reshape((image.height, image.width, 4))
-    img = img[:, :, :3]
-    print("---")
-    print("Update!")
-    cv2.imshow("Camera RGB", img)
-    cv2.waitKey(1)
+        client: carla.Client = carla.Client('localhost', 2000)
+        client.set_timeout(4.0)
 
+        self.world = World(client)
+        self.sensors = Sensors(self.world.carla_world, self.world.ego_vehicle)
+        self.info_text = InfoText()
 
-def main():
-    client = carla.Client('localhost', 2000)
-    client.set_timeout(4.0)
-    print("Available Maps:")
-    print(client.get_available_maps())
-    client.load_world('Town05')
-    client.reload_world()
-    world = client.get_world()
-    blueprint_library = world.get_blueprint_library()
+    def loop(self):
+        display = pygame.display.set_mode((self.sensors.display_width * 2 + self.info_text.info_text_width,
+            self.sensors.display_height * 2), pygame.HWSURFACE | pygame.DOUBLEBUF)
+        clock = pygame.time.Clock()
 
-    # Create vehicle
-    vehicle_bp = blueprint_library.filter('vehicle.citroen.c3')[0]
-    spawn_point = random.choice(world.get_map().get_spawn_points())
-    ego_vehicle = world.spawn_actor(vehicle_bp, spawn_point)
+        try:
+            while True:
+                clock.tick_busy_loop(100)
+                
+                surface_spectator = pygame.surfarray.make_surface(self.sensors.display_spectator_img.swapaxes(0, 1))
+                display.blit(surface_spectator, (0, 0))
 
-    # Make sure the spectator camera is following our vehicle by spawning a dummy actor
-    dummy_sensor_bp = blueprint_library.find('sensor.other.collision')
-    dummy_sensor_transform = carla.Transform(carla.Location(x=-6, z=3))
-    dummy_sensor = world.spawn_actor(dummy_sensor_bp, dummy_sensor_transform, attach_to=ego_vehicle)
-    spectator = world.get_spectator()
+                surface_rgb_sensor = pygame.surfarray.make_surface(self.sensors.display_rgb_img.swapaxes(0, 1))
+                display.blit(surface_rgb_sensor, (self.sensors.display_width, 0))
 
-    # Attach sensors to vehicle
-    cam_rgb_bp = blueprint_library.find('sensor.camera.rgb')
-    cam_rgb_transform = carla.Transform(carla.Location(x=-1, z=1.2))
-    camera_rgb = world.spawn_actor(cam_rgb_bp, cam_rgb_transform, attach_to=ego_vehicle)
-    # camera.listen(lambda image: image.save_to_disk('output/%06d.png' % image.frame
-    camera_rgb.listen(show_rgb)
-    
-    # spawn somewhere
-    # spawn_points = world.get_map().get_spawn_points()
+                surface_depth_sensor = pygame.surfarray.make_surface(self.sensors.display_depth_img.swapaxes(0, 1))
+                display.blit(surface_depth_sensor, (0, self.sensors.display_height))
 
-    # spawn at random waypoint and go to next waypoint
-    # Find next waypoint 2 meters ahead.
-    # waypoint = random.choice(waypoint.next(2.0))
-    # Drive there
-    # vehicle.set_transform(waypoint.transform)
+                surface_semseg_sensor = pygame.surfarray.make_surface(self.sensors.display_semseg_img.swapaxes(0, 1))
+                display.blit(surface_semseg_sensor, (self.sensors.display_width, self.sensors.display_height))
 
-    # Debug test, just drive forward
-    ego_vehicle.apply_control(carla.VehicleControl(throttle=1.0, steer=0.02))
-    while True:
-        timestamp = world.wait_for_tick()
-        spectator.set_transform(dummy_sensor.get_transform())
+                # fill text surface
+                filler = np.zeros((self.info_text.info_text_width, self.sensors.display_height * 2, 3))
+                surface_info_text = pygame.surfarray.make_surface(filler)
+                display.blit(surface_info_text, (self.sensors.display_width * 2, 0))
+                # add info text
+                self.info_text.update_text(display, self.sensors.display_width * 2, self.world, self.sensors)
 
-if __name__ == "__main__":
-    main()
+                pygame.display.flip()
+        finally:
+            self.sensors.destroy()
+            self.world.destroy()
+            pygame.quit()
+
+if __name__ == '__main__':
+    game = Game()
+    game.loop()

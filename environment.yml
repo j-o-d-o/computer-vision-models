@@ -13,6 +13,7 @@ dependencies:
     - opencv-python
     - nuscenes-devkit
     - tensorflow-model-optimization
+    - pygame
     - redis # to get the python interface for redis
     # tflite-runtime and py-coral for linux
     - https://github.com/google-coral/pycoral/releases/download/release-frogfish/tflite_runtime-2.5.0-cp37-cp37m-linux_x86_64.whl
