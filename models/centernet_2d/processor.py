@@ -31,6 +31,7 @@ class ProcessImages(IPreProcessor):
                 continue
 
             # Boxe's location and size are scaled to size of output_mask
+            #TODO: Offsets are not accounted for!
             scaled_box2d = (np.asarray(obj["box2d"]) * roi.scale) / float(Params.R)
             width = scaled_box2d[2]
             height = scaled_box2d[3]
