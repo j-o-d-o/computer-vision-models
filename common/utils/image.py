@@ -66,11 +66,14 @@ def resize_img(img: np.ndarray, goal_width: int, goal_height: int, offset_bottom
     img = cv2.resize(img, (goal_width, goal_height), interpolation=interpolation)
     return img, roi
 
-def to_3channel(raw_mask_output, class_mapping):
+def to_3channel(raw_mask_output, class_mapping, threshold: float = None, use_weight: bool = False):
     """
     Convert a mask with one hot encoded class mapping to a rgb coded colour image
     :param raw_mask_output: 2d img as mask outpu with channels > number of classes, also classes are expected to be first in the channels
     :param class_mapping: A ordered dict of class with key: string and value: (r, g, b)
+    :param threshold: Below this threshold the pixel will be left black
+    :param use_weight: Uses the score from the highest class for the color intensity
+    :                  make sure the scores are actually compareable and between [0, 1], e.g. with a sigmoid or softmax
     :return: 2d rgba image that encodes the class scores for each pixel
     """
     array = np.zeros((raw_mask_output.shape[0] * raw_mask_output.shape[1] * 3), dtype='uint8')
@@ -79,12 +82,16 @@ def to_3channel(raw_mask_output, class_mapping):
         # find index of highest value in the one_hot_encoded_arr
         nb_classes = len(class_mapping)
         cls_idx = np.argmax(one_hot_encoded_arr[:nb_classes])
-        # convert index to hex value
-        cls_colour = list(class_mapping.items())[int(round(cls_idx))][1]
-        # fill new array with BGR values
-        new_i = i * 3
-        array[new_i] = cls_colour[0]
-        array[new_i + 1] = cls_colour[1]
-        array[new_i + 2] = cls_colour[2]
+        cls_score = min(1.0, max(0.0, one_hot_encoded_arr[cls_idx]))
+        if threshold is None or cls_score > threshold:
+            # convert index to hex value
+            cls_score = cls_score if use_weight else 1.0
+            cls_colour = list(class_mapping.items())[int(round(cls_idx))][1]
+            cls_colour = tuple([cls_score * x for x in cls_colour])
+            # fill new array with BGR values
+            new_i = i * 3
+            array[new_i] = cls_colour[0]
+            array[new_i + 1] = cls_colour[1]
+            array[new_i + 2] = cls_colour[2]
 
     return array.reshape((raw_mask_output.shape[0], raw_mask_output.shape[1], 3))
