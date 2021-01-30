@@ -4,55 +4,44 @@ from models.centernet.params import Params
 
 
 class CenternetLoss(Loss):
-    def __init__(self, nb_cls,
-        focal_loss_alpha = Params.FOCAL_LOSS_ALPHA,
-        focal_loss_beta = Params.FOCAL_LOSS_ALPHA,
-        cls_weight = Params.CLS_WEIGHT,
-        offset_weight = Params.OFFSET_WEIGHT,
-        size_weight = Params.SIZE_WEIGHT,
-        box3d_weight = Params.BOX3D_WEIGHT,
-        radial_dist_weight = Params.RADIAL_DIST_WEIGHT,
-        orientation_weight = Params.ORIENTATION_WEIGHT,
-        obj_dims_weight = Params.OBJ_DIMS_WEIGHT
-    ):
+    def __init__(self, params: Params):
         super().__init__()
-        # hyperparams
-        self.focal_loss_alpha = focal_loss_alpha
-        self.focal_loss_beta = focal_loss_beta
-        self.cls_weight = cls_weight
-        self.offset_weight = offset_weight ** 2
-        self.size_weight = size_weight ** 2
-        self.box3d_weight = box3d_weight ** 2
-        self.radial_dist_weight = radial_dist_weight
-        self.orientation_weight = orientation_weight ** 2
-        self.obj_dims_weight = obj_dims_weight ** 2
-        # position of data within the y_true and y_pred
-        self.class_array_pos       = [0          , nb_cls     ] # object classes
-        self.loc_offset_pos        = [nb_cls     , nb_cls +  2] # x and y location offset resulting from scaling with R
-        self.size_px_pos           = [nb_cls +  2, nb_cls +  4] # width and height in pixel (fullbox)
-        self.bottom_edge_pts_pos   = [nb_cls +  4, nb_cls +  8] # bottom_left_off, bottom_right_off
-        self.bottom_center_off_pos = [nb_cls +  8, nb_cls + 10] # bottom_center_off (has some cases where loss is reduced)
-        self.center_height_pos     = nb_cls + 10
-        self.radial_dist_pos       = nb_cls + 11
-        self.orientation_pos       = nb_cls + 12
-        self.obj_dims_pos          = [nb_cls + 13, nb_cls + 16] # width, height, length in meter
+        self.params = params
+
+        # pre calc position of data within the y_true and y_pred
+        self.class_pos = [0, params.NB_CLASSES]
+        if params.REGRESSION_FIELDS["r_offset"].active:
+            self.r_offset_pos = [params.start_idx("r_offset"), params.end_idx("r_offset")]
+        if params.REGRESSION_FIELDS["fullbox"].active:
+            self.fullbox_pos = [params.start_idx("fullbox"), params.end_idx("fullbox")]
+        if params.REGRESSION_FIELDS["l_shape"].active:
+            # TODO: Split up the values in left, right edge and bottom center. Because bottom center
+            #       should have reduced loss when it is on/or close to the line between left and right edge point
+            #       because then the bottom center could be anywhere on the line, it doesnt really matter much
+            self.l_shape_pos = [params.start_idx("l_shape"), params.end_idx("l_shape")]
+        if params.REGRESSION_FIELDS["3d_info"].active:
+            # these are split up as they have different loss functions
+            start_idx = params.start_idx("3d_info")
+            self.radial_dist_pos = start_idx
+            self.orientation_pos = start_idx + 1
+            self.obj_dims_pos = [start_idx + 2, start_idx + 5]
 
     def class_focal_loss(self, y_true, y_pred):
-        y_true_class = y_true[:, :, :, :self.class_array_pos[1]]
-        y_pred_class = y_pred[:, :, :, :self.class_array_pos[1]]
+        y_true_class = y_true[:, :, :, :self.class_pos[1]]
+        y_pred_class = y_pred[:, :, :, :self.class_pos[1]]
 
         pos_mask = tf.cast(tf.equal(y_true_class, 1.0), tf.float32)
         neg_mask = tf.cast(tf.less(y_true_class, 1.0), tf.float32)
 
         pos_loss = (
             -pos_mask
-            * tf.math.pow(1.0 - y_pred_class, self.focal_loss_alpha)
+            * tf.math.pow(1.0 - y_pred_class, self.params.FOCAL_LOSS_ALPHA)
             * tf.math.log(tf.clip_by_value(y_pred_class, 1e-4, 1. - 1e-4))
         )
         neg_loss = (
             -neg_mask
-            * tf.math.pow(1.0 - y_true_class, self.focal_loss_beta)
-            * tf.math.pow(y_pred_class, self.focal_loss_alpha)
+            * tf.math.pow(1.0 - y_true_class, self.params.FOCAL_LOSS_BETA)
+            * tf.math.pow(y_pred_class, self.params.FOCAL_LOSS_ALPHA)
             * tf.math.log(tf.clip_by_value(1.0 - y_pred_class, 1e-4, 1. - 1e-4))
         )
 
@@ -63,33 +52,21 @@ class CenternetLoss(Loss):
         loss_val = tf.cond(tf.greater(n, 0), lambda: (pos_loss_val + neg_loss_val) / n, lambda: neg_loss_val)
         return loss_val
 
-    def size_loss(self, y_true, y_pred):
-        y_true_feat = y_true[:, :, :, self.size_px_pos[0]:self.size_px_pos[1]]
-        y_pred_feat = y_pred[:, :, :, self.size_px_pos[0]:self.size_px_pos[1]]
+    def r_offset_loss(self, y_true, y_pred):
+        y_true_feat = y_true[:, :, :, self.r_offset_pos[0]:self.r_offset_pos[1]]
+        y_pred_feat = y_pred[:, :, :, self.r_offset_pos[0]:self.r_offset_pos[1]]
         loss_val = self.calc_loss(y_true, y_true_feat, y_pred_feat)
         return loss_val
 
-    def loc_offset_loss(self, y_true, y_pred):
-        y_true_feat = y_true[:, :, :, self.loc_offset_pos[0]:self.loc_offset_pos[1]]
-        y_pred_feat = y_pred[:, :, :, self.loc_offset_pos[0]:self.loc_offset_pos[1]]
+    def fullbox_loss(self, y_true, y_pred):
+        y_true_feat = y_true[:, :, :, self.fullbox_pos[0]:self.fullbox_pos[1]]
+        y_pred_feat = y_pred[:, :, :, self.fullbox_pos[0]:self.fullbox_pos[1]]
         loss_val = self.calc_loss(y_true, y_true_feat, y_pred_feat)
         return loss_val
 
-    def bottom_edge_pts_loss(self, y_true, y_pred):
-        y_true_feat = y_true[:, :, :, self.bottom_edge_pts_pos[0]:self.bottom_edge_pts_pos[1]]
-        y_pred_feat = y_pred[:, :, :, self.bottom_edge_pts_pos[0]:self.bottom_edge_pts_pos[1]]
-        loss_val = self.calc_loss(y_true, y_true_feat, y_pred_feat)
-        return loss_val
-
-    def bottom_center_off_loss(self, y_true, y_pred):
-        y_true_feat = y_true[:, :, :, self.bottom_center_off_pos[0]:self.bottom_center_off_pos[1]]
-        y_pred_feat = y_pred[:, :, :, self.bottom_center_off_pos[0]:self.bottom_center_off_pos[1]]
-        loss_val = self.calc_loss(y_true, y_true_feat, y_pred_feat)
-        return loss_val
-
-    def center_height_loss(self, y_true, y_pred):
-        y_true_feat = y_true[:, :, :, self.center_height_pos:self.center_height_pos + 1]
-        y_pred_feat = y_pred[:, :, :, self.center_height_pos:self.center_height_pos + 1]
+    def l_shape_loss(self, y_true, y_pred):
+        y_true_feat = y_true[:, :, :, self.l_shape_pos[0]:self.l_shape_pos[1]]
+        y_pred_feat = y_pred[:, :, :, self.l_shape_pos[0]:self.l_shape_pos[1]]
         loss_val = self.calc_loss(y_true, y_true_feat, y_pred_feat)
         return loss_val
     
@@ -104,8 +81,7 @@ class CenternetLoss(Loss):
         y_pred_feat = y_pred[:, :, :, self.orientation_pos:self.orientation_pos + 1]
         loss_val = self.calc_loss(y_true, y_true_feat, y_pred_feat, loss_type="mae")
         # sqrt(1-0.99*cos(2*x))+abs(x*x*0.05)-0.0999
-        # This will have high loss at multiples of 90 deg, 0 loss at delta 0 and
-        # very reduced loss at multiples of 180 deg
+        # This will have high loss at multiples of 90 deg, 0 loss at delta 0 and reduced loss at multiples of 180 deg
         loss_val = tf.math.sqrt(1.0 - (0.99 * tf.math.cos(2.0 * loss_val))) + tf.math.abs(loss_val * loss_val * 0.05) - 0.0999
         return loss_val
 
@@ -116,7 +92,7 @@ class CenternetLoss(Loss):
         return loss_val
 
     def calc_loss(self, y_true, y_true_feat, y_pred_feat, loss_type: str = "mse"):
-        y_true_class = y_true[:, :, :, :self.class_array_pos[1]]
+        y_true_class = y_true[:, :, :, :self.class_pos[1]]
 
         pos_mask = tf.cast(tf.equal(y_true_class, 1.0), tf.float32)
         pos_mask = tf.reduce_max(pos_mask, axis=-1, keepdims=True)
@@ -140,18 +116,17 @@ class CenternetLoss(Loss):
         y_true = tf.cast(y_true, tf.float32)
         y_pred = tf.cast(y_pred, tf.float32)
 
-        class_loss = self.class_focal_loss(y_true, y_pred)
-        offset_loss = self.loc_offset_loss(y_true, y_pred)
-        size_loss = self.size_loss(y_true, y_pred)
-        bottom_edge_pts_loss = self.bottom_edge_pts_loss(y_true, y_pred)
-        bottom_center_off_loss = self.bottom_center_off_loss(y_true, y_pred)
-        center_height_loss = self.center_height_loss(y_true, y_pred)
-        radial_dist_loss = self.radial_dist_loss(y_true, y_pred)
-        orientation_loss = self.orientation_loss(y_true, y_pred)
-        obj_dims_loss = self.obj_dims_loss(y_true, y_pred)
+        total_loss = self.class_focal_loss(y_true, y_pred)
 
-        total_loss = (self.cls_weight * class_loss) + (self.offset_weight * offset_loss) + (self.size_weight * size_loss) + \
-            (self.box3d_weight * bottom_edge_pts_loss) + (self.box3d_weight * bottom_center_off_loss) + (self.box3d_weight * center_height_loss) + \
-            (self.radial_dist_weight * radial_dist_loss) + (self.orientation_weight * orientation_loss) + (self.obj_dims_weight * obj_dims_loss)
+        if self.params.REGRESSION_FIELDS["r_offset"].active:
+            total_loss += self.r_offset_loss(y_true, y_pred) * self.params.REGRESSION_FIELDS["r_offset"].loss_weight
+        if self.params.REGRESSION_FIELDS["fullbox"].active:
+            total_loss += self.fullbox_loss(y_true, y_pred) * self.params.REGRESSION_FIELDS["fullbox"].loss_weight
+        if self.params.REGRESSION_FIELDS["l_shape"].active:
+            total_loss += self.l_shape_loss(y_true, y_pred) * self.params.REGRESSION_FIELDS["l_shape"].loss_weight
+        if self.params.REGRESSION_FIELDS["3d_info"].active:
+            total_loss += self.radial_dist_loss(y_true, y_pred) * self.params.REGRESSION_FIELDS["3d_info"].loss_weight[0]
+            total_loss += self.orientation_loss(y_true, y_pred) * self.params.REGRESSION_FIELDS["3d_info"].loss_weight[1]
+            total_loss += self.obj_dims_loss(y_true, y_pred) * self.params.REGRESSION_FIELDS["3d_info"].loss_weight[2]
 
         return total_loss

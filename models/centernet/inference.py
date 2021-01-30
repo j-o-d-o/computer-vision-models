@@ -37,7 +37,6 @@ if __name__ == "__main__":
     output_details = None
     input_shape = None
     output_shape = None
-    nb_classes = len(OD_CLASS_MAPPING)
 
     if is_tf_lite:
         # Load the TFLite model and allocate tensors.
@@ -87,7 +86,10 @@ if __name__ == "__main__":
 
         heatmap = to_3channel(output_mask, OD_CLASS_MAPPING, 0.05, True)
         r = float(input_shape[1]) / float(output_shape[1])
-        objects = process_2d_output(output_mask, roi, r, nb_classes)
+        # TODO: Create parameters from json file instead of using the default values
+        #       that way we dont have to remember the exact parameters for every model we train
+        params = Params(len(OD_CLASS_MAPPING))
+        objects = process_2d_output(output_mask, roi, params)
         for obj in objects:
             color = list(OD_CLASS_MAPPING.values())[obj["cls_idx"]]
             color = (color[2], color[1], color[0])

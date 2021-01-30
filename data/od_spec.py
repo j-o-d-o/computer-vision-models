@@ -20,6 +20,7 @@ class Object:
   box3d: List[float] # [0,1]: back_top_left, [2,3]: back_bottom_left, [4,5]: back_bottom_right, [6,7]: back_top_right,
                      # [8,9]: front_top_left, [10,11]: front_bottom_left, [12,13]: front_bottom_right, [14,15]: front_top_right
                      # points are stored in with [x, y] in pixel
+  # TODO: Add a valid flag for the 3d box in case we want to sue fullbox data only at some point
   truncated: bool = False  # true if image leaves image boundaries
   occluded: int = 4 # 0 = fully visible (0-40%), 1 = partly occluded (40-60%), 2 = largely occluded (60-80%), 3 = almost all occluded (80-100%) 4 = unknown
 

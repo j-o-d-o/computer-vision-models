@@ -4,12 +4,15 @@ from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.utils import Config, Logger, to_3channel
 from data.od_spec import OD_CLASS_MAPPING
 from models.centernet.processor import ProcessImages
+from models.centernet.params import Params
 
 
 class TestProcessors:
     def setup_method(self):
         Logger.init()
         Logger.remove_file_logger()
+
+        self.params = Params(len(OD_CLASS_MAPPING))
 
         # get some entries from the database
         Config.add_config('./config.ini')
@@ -28,7 +31,7 @@ class TestProcessors:
             self.collection_details,
             self.train_data,
             batch_size=10,
-            processors=[ProcessImages()]
+            processors=[ProcessImages(self.params)]
         )
 
         batch_x, batch_y = train_gen[0]

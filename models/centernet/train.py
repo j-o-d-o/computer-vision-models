@@ -18,6 +18,8 @@ if __name__ == "__main__":
     Logger.init()
     Logger.remove_file_logger()
 
+    params = Params(len(OD_CLASS_MAPPING))
+
     Config.add_config('./config.ini')
     collection_details = ("local_mongodb", "object_detection", "kitti")
 
@@ -28,39 +30,32 @@ if __name__ == "__main__":
         shuffle_data=True
     )
 
-    processors = [ProcessImages(), AugmentImages()]
+    processors = [ProcessImages(params), AugmentImages()]
     train_gen = MongoDBGenerator(
         collection_details,
         train_data,
-        batch_size=Params.BATCH_SIZE,
+        batch_size=params.BATCH_SIZE,
         processors=processors
     )
     val_gen = MongoDBGenerator(
         collection_details,
         val_data,
-        batch_size=Params.BATCH_SIZE,
+        batch_size=params.BATCH_SIZE,
         processors=processors
     )
 
-    nb_classes = len(OD_CLASS_MAPPING)
-    loss = CenternetLoss(nb_classes)
-    # metrics = [loss.class_focal_loss, loss.loc_offset_loss, loss.size_loss, loss.bottom_edge_pts_loss,
-    #     loss.bottom_center_off_loss, loss.center_height_loss, loss.radial_dist_loss, loss.orientation_loss, loss.obj_dims_loss]
+    loss = CenternetLoss(params)
+    metrics = [loss.class_focal_loss, loss.r_offset_loss]
+    # loss.size_loss, loss.bottom_edge_pts_loss, loss.bottom_center_off_loss, loss.center_height_loss, loss.radial_dist_loss, loss.orientation_loss, loss.obj_dims_loss]
     metrics = []
     opt = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07) 
 
-    if Params.LOAD_PATH is None:
-        model: tf.keras.models.Model = create_model(
-            Params.INPUT_HEIGHT,
-            Params.INPUT_WIDTH,
-            int(Params.INPUT_HEIGHT // Params.R),
-            int(Params.INPUT_WIDTH // Params.R),
-            nb_classes
-        )
+    if params.LOAD_PATH is None:
+        model: tf.keras.models.Model = create_model(params)
         model.compile(optimizer=opt, loss=loss, metrics=metrics)
     else:
         custom_objects = {"compute_loss": loss}
-        model: tf.keras.models.Model = tf.keras.models.load_model(Params.LOAD_PATH, compile=False)
+        model: tf.keras.models.Model = tf.keras.models.load_model(params.LOAD_PATH, compile=False)
     model.compile(optimizer=opt, loss=loss, metrics=metrics)
     model.summary()
 
@@ -72,7 +67,7 @@ if __name__ == "__main__":
     model.fit(
         train_gen,
         validation_data=val_gen,
-        epochs=Params.NUM_EPOCH,
+        epochs=params.PLANED_EPOCHS,
         verbose=1,
         callbacks=callbacks,
         initial_epoch=0,
