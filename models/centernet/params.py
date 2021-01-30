@@ -4,6 +4,7 @@ Wrapper for all specific parameters needed to train the centernet
 from collections import OrderedDict
 from dataclasses import dataclass
 import re
+import json
 
 
 class Params:
@@ -71,6 +72,8 @@ class Params:
         dict_data = {
             "input": [self.INPUT_HEIGHT, self.INPUT_WIDTH, 3],
             "mask": [self.INPUT_HEIGHT // self.R, self.INPUT_WIDTH // self.R, self.mask_channels()],
+            "batch_size": self.BATCH_SIZE,
+            "load_path": self.LOAD_PATH,
             "output_fields": []
         }
         dict_data["output_fields"].append({"object_class": {"start_idx": 0, "end_idx": self.NB_CLASSES - 1, "comment": "Object classes"}})
@@ -78,6 +81,10 @@ class Params:
             if field.active:
                 dict_data["output_fields"].append({key: {"start_idx": self.start_idx(key), "end_idx": self.end_idx(key), "comment": field.comment}})
         return dict_data
+
+    def save_to_storage(self, storage_path: str):
+        with open(storage_path + "/parameters.json", "w") as outfile:
+            json.dump(self.serialize(), outfile)
 
     def fill_from_json(self):
         #TODO: Fill form a json file that contains the serialized params

@@ -45,9 +45,9 @@ if __name__ == "__main__":
     )
 
     loss = CenternetLoss(params)
-    metrics = [loss.class_focal_loss, loss.r_offset_loss]
-    # loss.size_loss, loss.bottom_edge_pts_loss, loss.bottom_center_off_loss, loss.center_height_loss, loss.radial_dist_loss, loss.orientation_loss, loss.obj_dims_loss]
-    metrics = []
+    metrics = [loss.class_focal_loss, loss.r_offset_loss, loss.fullbox_loss, loss.l_shape_loss,
+        loss.radial_dist_loss, loss.orientation_loss, loss.obj_dims_loss]
+    metrics = [loss.class_focal_loss, loss.r_offset_loss, loss.fullbox_loss]
     opt = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07) 
 
     if params.LOAD_PATH is None:
@@ -63,6 +63,7 @@ if __name__ == "__main__":
     storage_path = "./trained_models/centernet_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
     callbacks = [SaveToStorage(storage_path, model, False), tensorboard_callback]
+    params.save_to_storage(storage_path)
 
     model.fit(
         train_gen,
