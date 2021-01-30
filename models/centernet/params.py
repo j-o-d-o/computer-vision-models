@@ -19,10 +19,10 @@ class Params:
         self.BATCH_SIZE = 8
         self.PLANED_EPOCHS = 90
         self.LOAD_PATH = None
-        
+
         # Input
         self.INPUT_WIDTH = 608 # width of input img in [px]
-        self.INPUT_HEIGHT = 144 # height of input img in [px]
+        self.INPUT_HEIGHT = 184 # height of input img in [px]
         self.OFFSET_BOTTOM = 0 # offset in [px], applied before scaling, thus relative to org. img size
         
         # Output Mask
