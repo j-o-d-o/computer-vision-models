@@ -11,7 +11,8 @@ def load_ids(
         sort_by: dict = None,
         limit: int = None,
         shuffle_data: bool = False,
-        shuffle_steps: int = 1):
+        shuffle_steps: int = 1,
+        mongodb_filter: dict = {}):
     """
     Load MongoDB Document Ids from a collection and split them in training and validation data set
     :param col_details: MongoDB collection details with a tuple of 3 string entries
@@ -22,6 +23,7 @@ def load_ids(
     :param shuffle_data: determine if dataset should be shuffled before splitting it to train and validation data
     :param shuffle_steps: step size for the shuffling (e.g. for time series you want to have a shuffle_size of
                           BATCH_SIZE + (TIME_STEPS - 1)
+    :param mongodb_filter: apply to search when finding all ids
     :return: training and validation data
     """
     Logger.logger.info("Loading Document IDs from MongoDB")
@@ -32,7 +34,7 @@ def load_ids(
     if sort_by is None:
         sort_by = {"_id": 1}
 
-    db_cursor = collection.find({}, sort_by)
+    db_cursor = collection.find(mongodb_filter, sort_by)
 
     if limit:
         db_cursor.limit(limit)
