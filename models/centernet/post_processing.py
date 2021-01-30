@@ -15,7 +15,7 @@ def process_2d_output(output_mask, roi: Roi, params: Params, min_conf_value = 0.
     class_mask = output_mask[:, :, : params.NB_CLASSES]
 
     # window size in (y, x)
-    window_size = np.array((5, 5), dtype=np.int64)
+    window_size = np.array((9, 9), dtype=np.int64)
     window_center = np.int64(np.floor(window_size * 0.5))
 
     output_shape = output_mask.shape

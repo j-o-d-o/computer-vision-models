@@ -38,9 +38,9 @@ class Params:
         # Loss - Regression
         self.REGRESSION_FIELDS = OrderedDict([
             ("r_offset", Params.RegressionField(True, 2, 0.7, "x, y")),
-            ("fullbox", Params.RegressionField(False, 2, 0.1, "width, height (in [px] relative to input)")),
-            ("l_shape", Params.RegressionField(False, 7, 0.1, "bottom_left_offset, bottom_right_offset, bottom_center_offset, center_height, (all points (x,y) in [px] relative to input)")),
-            ("3d_info", Params.RegressionField(False, 5, [0.1, 0.2, 0.1], "radial_dist [m], orientation [rad], width, height, length [m] (all in cam coordinate system)")),
+            ("fullbox", Params.RegressionField(True, 2, 0.1, "width, height (in [px] relative to input)")),
+            ("l_shape", Params.RegressionField(True, 7, 0.1, "bottom_left_offset, bottom_right_offset, bottom_center_offset, center_height, (all points (x,y) in [px] relative to input)")),
+            ("3d_info", Params.RegressionField(True, 5, [0.1, 0.2, 0.1], "radial_dist [m], orientation [rad], width, height, length [m] (all in cam coordinate system)")),
         ])
 
     def start_idx(self, regression_key: str) -> int:
