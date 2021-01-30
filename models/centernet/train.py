@@ -5,7 +5,7 @@ from common.utils import Logger, Config
 from common.callbacks import SaveToStorage
 from common.processors import AugmentImages
 from data.od_spec import OD_CLASS_MAPPING
-from models.centernet_2d import ProcessImages, Params, Centernet2DLoss, create_model
+from models.centernet import ProcessImages, Params, CenternetLoss, create_model
 
 print("Using Tensorflow Version: " + tf.__version__)
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     # Create Data Generators
     train_data, val_data = load_ids(
         collection_details,
-        data_split=(77, 23),
+        data_split=(82, 18),
         shuffle_data=True
     )
 
@@ -43,8 +43,10 @@ if __name__ == "__main__":
     )
 
     nb_classes = len(OD_CLASS_MAPPING)
-    loss = Centernet2DLoss(nb_classes, Params.LOSS_SIZE_WEIGHT, Params.LOSS_OFFSET_WEIGHT, Params.FOCAL_LOSS_ALPHA, Params.FOCAL_LOSS_BETA)
-    metrics = [loss.size_loss, loss.offset_loss, loss.class_focal_loss]
+    loss = CenternetLoss(nb_classes)
+    # metrics = [loss.class_focal_loss, loss.loc_offset_loss, loss.size_loss, loss.bottom_edge_pts_loss,
+    #     loss.bottom_center_off_loss, loss.center_height_loss, loss.radial_dist_loss, loss.orientation_loss, loss.obj_dims_loss]
+    metrics = []
     opt = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07) 
 
     if Params.LOAD_PATH is None:
@@ -58,11 +60,12 @@ if __name__ == "__main__":
         model.compile(optimizer=opt, loss=loss, metrics=metrics)
     else:
         custom_objects = {"compute_loss": loss}
-        model: tf.keras.models.Model = models.load_model(Params.LOAD_PATH, custom_objects=custom_objects)
+        model: tf.keras.models.Model = tf.keras.models.load_model(Params.LOAD_PATH, compile=False)
+    model.compile(optimizer=opt, loss=loss, metrics=metrics)
     model.summary()
 
     # Train Model
-    storage_path = "./trained_models/centernet2d_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
+    storage_path = "./trained_models/centernet_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
     callbacks = [SaveToStorage(storage_path, model, False), tensorboard_callback]
 

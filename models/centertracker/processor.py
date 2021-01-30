@@ -6,7 +6,7 @@ from tensorflow.keras.utils import to_categorical
 from common.processors import IPreProcessor
 from common.utils import resize_img
 from data.od_spec import OD_CLASS_MAPPING, OD_CLASS_IDX
-from models.centernet_2d.params import Params
+from models.centernet.params import Params
 
 SHOW_DEBUG_IMG = False # showing the input image including all object's 2d information drawn
 

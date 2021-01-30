@@ -1,12 +1,11 @@
 import tensorflow as tf
-from tensorflow_model_optimization.quantization.keras import quantize_annotate_layer, quantize_apply
 from tensorflow.keras.layers import Input, Conv2D, Add, BatchNormalization, ReLU, MaxPooling2D, Conv2DTranspose, Concatenate, ZeroPadding2D, Dropout, DepthwiseConv2D
-from tensorflow.keras.models import Model, clone_model
+from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
 from data.semseg_spec import SEMSEG_CLASS_MAPPING
 
 
-def __bottle_neck_block(inputs: tf.Tensor, filters: int, expansion_factor: int = 6, dilation_rate: int = 1, downsample: bool =False) -> tf.Tensor:
+def _bottle_neck_block(inputs: tf.Tensor, filters: int, expansion_factor: int = 6, dilation_rate: int = 1, downsample: bool =False) -> tf.Tensor:
     """
     Bottleneck blocks (As introduced in MobileNet(v2): https://arxiv.org/abs/1801.04381) and extended in functionallity to downsample and to add dilation rates
     :params inputs: Input tensor
@@ -76,8 +75,8 @@ def create_model(input_height: int, input_width: int) -> tf.keras.Model:
     fms = [] # feature maps
 
     # Feature maps downsampling
-    x = _bottle_neck_block(inputs[0], 1 * fs)
-    x = _bottle_neck_block(inputs[0], 1 * fs)
+    x = _bottle_neck_block(inputs, 1 * fs)
+    x = _bottle_neck_block(x, 1 * fs)
     fms.append(x)
     x = _bottle_neck_block(x, 1 * fs, downsample=True)
     x = _bottle_neck_block(x, 2 * fs)

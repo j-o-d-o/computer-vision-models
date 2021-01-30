@@ -21,6 +21,7 @@ class TestProcessors:
         # Create Data Generators
         self.train_data, self.val_data = load_ids(
             self.collection_details,
+            mongodb_filter={"has_3D_info": True},
             data_split=(70, 30),
             limit=200
         )

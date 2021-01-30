@@ -1,15 +1,18 @@
 import numpy as np
-from common.utils import Roi, convert_to_roi
+from common.utils import Roi, convert_back_to_roi
 
 
-def process_2d_output(output_mask, roi: Roi, r: float, nb_classes: int):
+def process_2d_output(output_mask, roi: Roi, r: float, nb_classes: int, min_conf_value = 0.25):
     """
     Sliding window to find maximas which are related to objects
     :param output_mask: output of the centernet, assumed encoding on last axis:
-    :                   [0:nb_classes]: classes, [nb_classes]: offset_x, [nb_classes+1]: offset_y, [nb_classes+2]: width, [nb_classes+3]: height, 
+    :                   [0:nb_classes]: classes, (following indices have all offset nb_classes) [0:1]: loc_offset, [2]: width px, [3]: height px,
+    :                   [4:5]: bottom_left_off, [6:7]: bottom_right_off, [8:9]: bottom_center_off, [10]: center_height, [11]: radial_distance,
+    :                   [12]: orientation, [13]: width, [14]: height, [15]: length
     :param roi: region of interesst of input compared to org image
     :param r: scale of output_mask compared to input
     :param nb_classes: number of classes that are used in the output_mask
+    :param min_conf_value: every peak above this threshold will be considered an object
     """
     objects = []
     class_mask = output_mask[:, :, :nb_classes]
@@ -17,9 +20,6 @@ def process_2d_output(output_mask, roi: Roi, r: float, nb_classes: int):
     # window size in (y, x)
     window_size = np.array((5, 5), dtype=np.int64)
     window_center = np.int64(np.floor(window_size * 0.5))
-
-    # min confidence the maximum needs to have
-    min_conf_value = 0.25
 
     output_shape = output_mask.shape
     # loop over every pixel per class
@@ -38,14 +38,17 @@ def process_2d_output(output_mask, roi: Roi, r: float, nb_classes: int):
             if max_idx == tuple(window_center) and curr_pixel[cls_idx] > min_conf_value:
                 offset_x = curr_pixel[nb_classes]
                 offset_y = curr_pixel[nb_classes + 1]
-                r_scaled_center = ((x * r) + offset_x, (y * r) + offset_y)
-                center = convert_to_roi(roi, r_scaled_center)
-                width = curr_pixel[nb_classes + 2] * r * (1 / roi.scale)
-                height = curr_pixel[nb_classes + 3] * r * (1 / roi.scale)
-                # location, width and height in relation to the org image size
+                center = convert_back_to_roi(roi, [(x + offset_x) * r, (y + offset_y) * r])
+                width_px = curr_pixel[nb_classes + 2] * (1 / roi.scale)
+                height_px = curr_pixel[nb_classes + 3] * (1 / roi.scale)
                 objects.append({
-                    "obj_idx": cls_idx,
-                    "top_left": (int(center[0] - (width * 0.5)), int(center[1] - (height * 0.5))),
-                    "bottom_right": (int(center[0] + (width * 0.5)), int(center[1] + (height * 0.5)))
+                    "cls_idx": cls_idx,
+                    "center": center,
+                    "fullbox": [center[0] - (width_px / 2.0), center[1] - (height_px / 2.0), width_px, height_px],
+                    "bottom_left": center + curr_pixel[nb_classes + 4: nb_classes + 6] * (1 / roi.scale),
+                    "bottom_right": center + curr_pixel[nb_classes + 6: nb_classes + 8] * (1 / roi.scale),
+                    "bottom_center": center + curr_pixel[nb_classes + 8: nb_classes + 10] * (1 / roi.scale),
+                    "center_height": curr_pixel[nb_classes + 10] * (1 / roi.scale)
                 })
+
     return objects

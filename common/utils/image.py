@@ -17,7 +17,7 @@ class Roi:
     scale: float = 1.0
 
 
-def convert_to_roi(roi: Roi, point):
+def convert_back_to_roi(roi: Roi, point):
     converted = [point[0], point[1]]
     converted[0] = (1 / roi.scale) * point[0]
     converted[1] = (1 / roi.scale) * point[1]
