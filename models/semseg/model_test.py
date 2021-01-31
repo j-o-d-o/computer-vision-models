@@ -3,5 +3,6 @@ from models.semseg import SemsegParams
 
 class TestModel:
     def test_create_model(self):
-        model = create_model(SemsegParams.INPUT_HEIGHT, SemsegParams.INPUT_WIDTH)
+        params = SemsegParams()
+        model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
         model.summary()

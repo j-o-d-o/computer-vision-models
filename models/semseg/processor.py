@@ -28,20 +28,23 @@ def to_hex(img):
     return (img[:, :, 0] << 16) + (img[:, :, 1] << 8) + img[:, :, 2]
 
 class ProcessImages(IPreProcessor):
+    def __init__(self, params: SemsegParams):
+        self.params: SemsegParams = params
+
     def process(self, raw_data, input_data, ground_truth, piped_params=None):
         # Add input_data
         img_encoded = np.frombuffer(raw_data["img"], np.uint8)
         input_data = cv2.imdecode(img_encoded, cv2.IMREAD_COLOR)
-        input_data, roi_img = resize_img(input_data, SemsegParams.INPUT_WIDTH, SemsegParams.INPUT_HEIGHT, offset_bottom=SemsegParams.OFFSET_BOTTOM)
+        input_data, roi_img = resize_img(input_data, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM)
         input_data = input_data.astype(np.float32)
         piped_params["roi_img"] = roi_img
 
         # Add ground_truth mask
         mask_encoded = np.frombuffer(raw_data["mask"], np.uint8)
         mask_img = cv2.imdecode(mask_encoded, cv2.IMREAD_COLOR)
-        mask_img, roi_img = resize_img(mask_img, SemsegParams.MASK_WIDTH, SemsegParams.MASK_HEIGHT, offset_bottom=SemsegParams.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
+        mask_img, roi_img = resize_img(mask_img, self.params.MASK_WIDTH, self.params.MASK_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
         piped_params["roi_img"] = roi_img
-        # one hot encode based on class mapping from SemsegParams
+        # one hot encode based on class mapping from semseg spec
         mask_img = to_hex(mask_img) # convert 3 channel representation to single hex channel
         vfunc = np.vectorize(key_to_index)
         mask_img = vfunc(mask_img)
