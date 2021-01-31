@@ -9,7 +9,7 @@ import time
 from pymongo import MongoClient
 from common.utils import to_3channel, resize_img
 from data.od_spec import OD_CLASS_MAPPING
-from models.centernet import process_2d_output, Params
+from models.centernet import process_2d_output, CenternetParams
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 assert len(gpus) > 0, "Not enough GPU hardware devices available"
@@ -22,8 +22,8 @@ if __name__ == "__main__":
     parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
     parser.add_argument("--db", type=str, default="object_detection", help="MongoDB database")
     parser.add_argument("--collection", type=str, default="kitti_test", help="MongoDB collection")
-    parser.add_argument("--offset_bottom", type=int, default=0, help="Offset from the bottom in orignal image scale")
-    parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/centernet_2021-01-29-204612/tf_model_5", help="Path to a tensorflow model folder")
+    parser.add_argument("--offset_bottom", type=int, default=-180, help="Offset from the bottom in orignal image scale")
+    parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/centernet_2021-01-30-152914/tf_model_9/keras.h5", help="Path to a tensorflow model folder")
     parser.add_argument("--use_edge_tpu", action="store_true", help="EdgeTpu should be used for inference")
     args = parser.parse_args()
 
@@ -52,20 +52,20 @@ if __name__ == "__main__":
         input_shape = input_details[0]['shape']
         output_shape = output_details[0]['shape']
     else:
-        model: tf.keras.models.Model = tf.keras.models.load_model(args.model_path, compile=False)
+        model: tf.keras.models.Model = tf.keras.models.load_model(args.model_path, custom_objects={}, compile=False)
         model.summary()
         input_shape = model.input.shape
         output_shape = model.output.shape
         print("Using Tensorflow")
 
     # alternative data source, mp4 video
-    # cap = cv2.VideoCapture('/path/to/example.mp4')
-    # while (cap.isOpened()):
-    #     ret, img = cap.read()
-    documents = collection.find({}).limit(20)
-    for doc in documents:
-        decoded_img = np.frombuffer(doc["img"], np.uint8)
-        img = cv2.imdecode(decoded_img, cv2.IMREAD_COLOR)
+    cap = cv2.VideoCapture('/home/jo/training_data/speedchallenge/data/train.mp4')
+    while (cap.isOpened()):
+        ret, img = cap.read()
+    # documents = collection.find({}).limit(20)
+    # for doc in documents:
+    #     decoded_img = np.frombuffer(doc["img"], np.uint8)
+    #     img = cv2.imdecode(decoded_img, cv2.IMREAD_COLOR)
 
         input_img, roi = resize_img(img, input_shape[2], input_shape[1], offset_bottom=args.offset_bottom)
 
@@ -84,19 +84,19 @@ if __name__ == "__main__":
             elapsed_time = time.time() - start_time
             output_mask = raw_result[0]
 
-        heatmap = to_3channel(output_mask, OD_CLASS_MAPPING, 0.05, True)
+        heatmap = to_3channel(output_mask, OD_CLASS_MAPPING, 0.001, True)
         r = float(input_shape[1]) / float(output_shape[1])
         # TODO: Create parameters from json file instead of using the default values
         #       that way we dont have to remember the exact parameters for every model we train
-        params = Params(len(OD_CLASS_MAPPING))
-        objects = process_2d_output(output_mask, roi, params)
+        params = CenternetParams(len(OD_CLASS_MAPPING))
+        objects = process_2d_output(output_mask, roi, params, min_conf_value=0.2)
         for obj in objects:
             color = list(OD_CLASS_MAPPING.values())[obj["cls_idx"]]
             color = (color[2], color[1], color[0])
             # fullbox
-            # top_left = (int(obj["fullbox"][0]), int(obj["fullbox"][1]))
-            # bottom_right = (int(obj["fullbox"][0] + obj["fullbox"][2]), int(obj["fullbox"][1] + obj["fullbox"][3]))
-            # cv2.rectangle(img, top_left, bottom_right, color, 1)
+            top_left = (int(obj["fullbox"][0]), int(obj["fullbox"][1]))
+            bottom_right = (int(obj["fullbox"][0] + obj["fullbox"][2]), int(obj["fullbox"][1] + obj["fullbox"][3]))
+            cv2.rectangle(img, top_left, bottom_right, color, 1)
             # # 3d box
             # top_center = (int(obj["bottom_center"][0]), int(obj["bottom_center"][1] - obj["center_height"]))
             # bottom_left = (int(obj["bottom_left"][0]), int(obj["bottom_left"][1]))

@@ -3,7 +3,7 @@ import numpy as np
 from models.centernet import process_2d_output
 from common.utils import Roi
 from data.od_spec import OD_CLASS_MAPPING
-from models.centernet.params import Params
+from models.centernet.params import CenternetParams
 
 
 class TestPosProcessing:
@@ -24,7 +24,7 @@ class TestPosProcessing:
 
     def test_post_processing(self):
         nb_classes = 3
-        params = Params(nb_classes)
+        params = CenternetParams(nb_classes)
         params.REGRESSION_FIELDS["r_offset"].active = True
         params.REGRESSION_FIELDS["fullbox"].active = True
         params.REGRESSION_FIELDS["l_shape"].active = True

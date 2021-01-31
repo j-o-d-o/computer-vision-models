@@ -5,7 +5,7 @@ from common.utils import Logger, Config
 from common.callbacks import SaveToStorage
 from common.processors import AugmentImages
 from data.od_spec import OD_CLASS_MAPPING
-from models.centernet import ProcessImages, Params, CenternetLoss, create_model
+from models.centernet import ProcessImages, CenternetParams, CenternetLoss, create_model
 
 print("Using Tensorflow Version: " + tf.__version__)
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     Logger.init()
     Logger.remove_file_logger()
 
-    params = Params(len(OD_CLASS_MAPPING))
+    params = CenternetParams(len(OD_CLASS_MAPPING))
 
     Config.add_config('./config.ini')
     collection_details = ("local_mongodb", "object_detection", "kitti")

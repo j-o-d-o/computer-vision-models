@@ -7,7 +7,7 @@ import re
 import json
 
 
-class Params:
+class CenternetParams:
     @dataclass
     class RegressionField:
         active: bool = False # if the field is active it will be added to the output
@@ -37,10 +37,10 @@ class Params:
         self.NB_CLASSES = nb_classes # need to calc the indices of all the regression fields
         # Loss - Regression
         self.REGRESSION_FIELDS = OrderedDict([
-            ("r_offset", Params.RegressionField(True, 2, 0.7, "x, y")),
-            ("fullbox", Params.RegressionField(True, 2, 0.1, "width, height (in [px] relative to input)")),
-            ("l_shape", Params.RegressionField(True, 7, 0.1, "bottom_left_offset, bottom_right_offset, bottom_center_offset, center_height, (all points (x,y) in [px] relative to input)")),
-            ("3d_info", Params.RegressionField(True, 5, [0.1, 0.2, 0.1], "radial_dist [m], orientation [rad], width, height, length [m] (all in cam coordinate system)")),
+            ("r_offset", CenternetParams.RegressionField(True, 2, 0.7, "x, y")),
+            ("fullbox", CenternetParams.RegressionField(True, 2, 0.1, "width, height (in [px] relative to input)")),
+            ("l_shape", CenternetParams.RegressionField(True, 7, 0.1, "bottom_left_offset, bottom_right_offset, bottom_center_offset, center_height, (all points (x,y) in [px] relative to input)")),
+            ("3d_info", CenternetParams.RegressionField(True, 5, [0.1, 0.2, 0.1], "radial_dist [m], orientation [rad], width, height, length [m] (all in cam coordinate system)")),
         ])
 
     def start_idx(self, regression_key: str) -> int:

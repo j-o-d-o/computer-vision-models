@@ -6,13 +6,13 @@ from tensorflow.keras.utils import to_categorical
 from common.processors import IPreProcessor
 from common.utils import resize_img
 from data.od_spec import OD_CLASS_MAPPING, OD_CLASS_IDX
-from models.centernet.params import Params
+from models.centernet.params import CenternetParams
 
 SHOW_DEBUG_IMG = False # showing the input image including all object's 2d information drawn
 
 
 class ProcessImages(IPreProcessor):
-    def __init__(self, params: Params):
+    def __init__(self, params: CenternetParams):
         self.params = params
 
     def fillHeatmap(self, ground_truth, cls_idx, center_x, center_y, obj_width, obj_height, mask_width, mask_height):

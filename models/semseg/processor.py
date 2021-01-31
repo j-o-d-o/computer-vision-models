@@ -5,7 +5,7 @@ from tensorflow.keras.utils import to_categorical
 from common.processors import IPreProcessor
 from common.utils import resize_img
 from data.semseg_spec import SEMSEG_CLASS_MAPPING
-from models.semseg.params import Params
+from models.semseg.params import SemsegParams
 
 
 def key_to_index(value):
@@ -32,16 +32,16 @@ class ProcessImages(IPreProcessor):
         # Add input_data
         img_encoded = np.frombuffer(raw_data["img"], np.uint8)
         input_data = cv2.imdecode(img_encoded, cv2.IMREAD_COLOR)
-        input_data, roi_img = resize_img(input_data, Params.INPUT_WIDTH, Params.INPUT_HEIGHT, offset_bottom=Params.OFFSET_BOTTOM)
+        input_data, roi_img = resize_img(input_data, SemsegParams.INPUT_WIDTH, SemsegParams.INPUT_HEIGHT, offset_bottom=SemsegParams.OFFSET_BOTTOM)
         input_data = input_data.astype(np.float32)
         piped_params["roi_img"] = roi_img
 
         # Add ground_truth mask
         mask_encoded = np.frombuffer(raw_data["mask"], np.uint8)
         mask_img = cv2.imdecode(mask_encoded, cv2.IMREAD_COLOR)
-        mask_img, roi_img = resize_img(mask_img, Params.MASK_WIDTH, Params.MASK_HEIGHT, offset_bottom=Params.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
+        mask_img, roi_img = resize_img(mask_img, SemsegParams.MASK_WIDTH, SemsegParams.MASK_HEIGHT, offset_bottom=SemsegParams.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
         piped_params["roi_img"] = roi_img
-        # one hot encode based on class mapping from Params
+        # one hot encode based on class mapping from SemsegParams
         mask_img = to_hex(mask_img) # convert 3 channel representation to single hex channel
         vfunc = np.vectorize(key_to_index)
         mask_img = vfunc(mask_img)

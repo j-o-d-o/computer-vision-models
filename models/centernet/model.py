@@ -3,11 +3,11 @@ import tensorflow as tf
 from tensorflow.keras import initializers, regularizers, Model
 from tensorflow.keras.layers import Conv2DTranspose, BatchNormalization, ReLU, Conv2D, DepthwiseConv2D, Add, Input, Concatenate
 import numpy as np
-from models.centernet.params import Params
+from models.centernet.params import CenternetParams
 from common.layers import bottle_neck_block, upsample_block
 
 
-def create_model(params: Params):
+def create_model(params: CenternetParams):
     fs = 16 # filter scaling
     fms = [] # feature maps
 

@@ -3,7 +3,7 @@ Hold all the specific parameters in this python class
 """
 
 
-class Params:
+class SemsegParams:
     ########################
     ##### INPUT CONFIG #####
     ########################

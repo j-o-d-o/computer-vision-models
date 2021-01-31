@@ -1,9 +1,9 @@
 import numpy as np
 from common.utils import Roi, convert_back_to_roi
-from models.centernet.params import Params
+from models.centernet.params import CenternetParams
 
 
-def process_2d_output(output_mask, roi: Roi, params: Params, min_conf_value = 0.25):
+def process_2d_output(output_mask, roi: Roi, params: CenternetParams, min_conf_value = 0.25):
     """
     Sliding window to find maximas which are related to objects
     :param output_mask: output of the centernet

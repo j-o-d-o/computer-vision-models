@@ -1,10 +1,10 @@
 import tensorflow as tf
 from tensorflow.keras.losses import Loss
-from models.centernet.params import Params
+from models.centernet.params import CenternetParams
 
 
 class CenternetLoss(Loss):
-    def __init__(self, params: Params):
+    def __init__(self, params: CenternetParams):
         super().__init__()
         self.params = params
 

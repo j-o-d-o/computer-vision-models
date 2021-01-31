@@ -4,7 +4,7 @@ from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.utils import Config, Logger, to_3channel
 from data.od_spec import OD_CLASS_MAPPING
 from models.centernet.processor import ProcessImages
-from models.centernet.params import Params
+from models.centernet.params import CenternetParams
 
 
 class TestProcessors:
@@ -12,7 +12,7 @@ class TestProcessors:
         Logger.init()
         Logger.remove_file_logger()
 
-        self.params = Params(len(OD_CLASS_MAPPING))
+        self.params = CenternetParams(len(OD_CLASS_MAPPING))
 
         # get some entries from the database
         Config.add_config('./config.ini')

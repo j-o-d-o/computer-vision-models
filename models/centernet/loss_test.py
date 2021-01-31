@@ -2,13 +2,13 @@ import numpy as np
 import pytest
 from models.centernet import CenternetLoss
 import tensorflow as tf
-from models.centernet.params import Params
+from models.centernet.params import CenternetParams
 
 
 class TestLoss():
     def setup_method(self):
         nb_classes = 3
-        self.params = Params(nb_classes)
+        self.params = CenternetParams(nb_classes)
         self.params.REGRESSION_FIELDS["r_offset"].active = True
         self.params.REGRESSION_FIELDS["fullbox"].active = True
         self.params.REGRESSION_FIELDS["l_shape"].active = True
