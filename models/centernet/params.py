@@ -28,7 +28,7 @@ class CenternetParams:
         
         # Output Mask
         self.R = 2 # scale from input image to output heat map
-        self.VARIANCE_ALPHA = 0.90 # variance to determine how spread out the class blobs are on the ground truth
+        self.VARIANCE_ALPHA = 0.52 # variance to determine how spread out the class blobs are on the ground truth
 
         # Loss - Class
         self.FOCAL_LOSS_ALPHA = 2.0

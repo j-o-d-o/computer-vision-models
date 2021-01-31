@@ -1,117 +1,90 @@
 import numpy as np
 import cv2
 import math
+import copy
+import random
 from dataclasses import dataclass
 from tensorflow.keras.utils import to_categorical
-from common.processors import IPreProcessor
+from models.centernet import ProcessImages
 from common.utils import resize_img
 from data.od_spec import OD_CLASS_MAPPING, OD_CLASS_IDX
-from models.centernet.params import Params
-
-SHOW_DEBUG_IMG = False # showing the input image including all object's 2d information drawn
+import albumentations as A
 
 
-class ProcessImages(IPreProcessor):
+class CenterTrackerProcess(ProcessImages):
+    def random_offset(self):
+        abs_val = random.random() * 35 + 10
+        if random.random() < 0.5:
+            return -abs_val
+        else:
+            return abs_val
+
+    def gen_prev_heatmap(self, shape, gt_2d_info, roi):
+        prev_heatmap = np.zeros((*shape, 1))
+        mask_width = self.params.INPUT_WIDTH // self.params.R
+        mask_height = self.params.INPUT_HEIGHT // self.params.R
+        for [center_x, center_y, width, height] in gt_2d_info:
+            # skip with certain probability to simulate a false negative
+            if random.random() > self.params.FN_PROB:
+                # add fp with certain probability
+                if random.random() < self.params.FP_PROB:
+                    fp_center_x = int(center_x + self.random_offset())
+                    fp_center_y = int(center_y + self.random_offset())
+                    peak = ((random.random() * 0.8) + 0.2) ** 2
+                    self.fill_heatmap(prev_heatmap, 0, fp_center_x, fp_center_y, width, height, mask_width, mask_height, peak)
+                # jitter the true positive positions by gausian distribution
+                noisy_center_x = int(center_x + np.random.normal() * self.params.POS_NOISE_WEIGHT * width)
+                noisy_center_y = int(center_y + np.random.normal() * self.params.POS_NOISE_WEIGHT * height)
+                peak = random.random() * 0.5 + 0.2 # usually higher peaks than fps
+                self.fill_heatmap(prev_heatmap, 0, noisy_center_x, noisy_center_y, width, height, mask_width, mask_height, peak)
+
+        return prev_heatmap
+
     def process(self, raw_data, input_data, ground_truth, piped_params=None):
-        # Add input_data
-        img_encoded = np.frombuffer(raw_data["img"], np.uint8)
-        input_data_unscaled = cv2.imdecode(img_encoded, cv2.IMREAD_COLOR)
-        input_data, roi = resize_img(input_data_unscaled, Params.INPUT_WIDTH, Params.INPUT_HEIGHT, offset_bottom=Params.OFFSET_BOTTOM)
-        input_data = input_data.astype(np.float32)
-        if SHOW_DEBUG_IMG:
-            debug_img = input_data.copy().astype(np.uint8)
+        if isinstance(raw_data, list):
+            # TODO: Use the t-1 frame
+            _, input_data, ground_truth, _ = super().process(raw_data[0], input_data, ground_truth, piped_params)
+            assert(False and "Not implemented yet")
+        else:
+            _, input_data, ground_truth, _ = super().process(raw_data, input_data, ground_truth, piped_params)
+             # make input_data a list since we will have multiple input channels
+            input_data = [input_data]
 
-        # Add ground_truth mask/heatmap
-        mask_width = Params.INPUT_WIDTH // Params.R
-        mask_height = Params.INPUT_HEIGHT // Params.R
-        nb_classes = len(OD_CLASS_MAPPING)
-        mask_channels = nb_classes + 14 # nb_classes + nb_regression_parameters
-        ground_truth = np.zeros((mask_height, mask_width, mask_channels))
+            # create previous heatmap
+            prev_heatmap = self.gen_prev_heatmap((ground_truth.shape[0], ground_truth.shape[1]), piped_params["gt_2d_info"], piped_params["roi"])
 
-        # some debugging
-        for obj in raw_data["objects"]:
-            # create 2D information (see od_spec.py for format):
-            # heatmap values: center_x, center_y
-            # regression values: bottom_left, bottom_center, bottom_right, height, offset_x, offset_y
+            # copy as prev image
+            prev_img = input_data[0].copy()
 
-            # get center points and their offset
-            scaled_box2d = ((np.asarray(obj["box2d"]) + [roi.offset_left, roi.offset_top, 0, 0]) * roi.scale) / float(Params.R)
-            x, y, width, height = scaled_box2d
-            center_x_float = x + (float(width) / 2.0)
-            center_y_float = y + (float(height) / 2.0)
-            center_x = max(0, min(mask_width - 1, int(center_x_float))) # index needs to be int and within mask range
-            center_y = max(0, min(mask_height - 1, int(center_y_float))) # index needs to be int and within mask range
-            offset_x = center_x_float - center_x
-            offset_y = center_y_float - center_y
+            # Translate and scale the image as well as the heatmap to mimic a t-1 frame and add to input_data
+            trans = A.ShiftScaleRotate(shift_limit=0.28, scale_limit=0.35, rotate_limit=0, always_apply=True, border_mode=cv2.BORDER_CONSTANT)
+            transform = A.ReplayCompose(
+                [trans],
+                keypoint_params=A.KeypointParams(format='xy', remove_invisible=False),
+                additional_targets={'prev_heatmap': 'image'}
+            )
+            keypoints = list(np.array(piped_params["gt_2d_info"])[:,:2] * self.params.R)
+            transformed = transform(image=prev_img, prev_heatmap=prev_heatmap, keypoints=keypoints)
+            input_data.append(transformed["image"])
+            input_data.append(transformed["prev_heatmap"])
+            
+            # Add to ground_truth: Regression param offset to t-1 object using the scale and dx, dy changes from the previous image transformation
+            # applied_params = transformed["replay"]["transforms"][0]["params"]
+            # scale = applied_params["scale"]
+            # shift_x = applied_params["dx"] * prev_img.shape[0]
+            # shift_y = applied_params["dy"] * prev_img.shape[0]
 
-            # find bottom_left and bottom_right points
-            offsetsBox3d = [roi.offset_left, roi.offset_bottom] * 8
-            box3d = (np.asarray(obj["box3d"]) + offsetsBox3d) * roi.scale
-            top_points = np.asarray([box3d[0:2], box3d[6:8], box3d[8:10], box3d[14:]])
-            bottom_points = np.asarray([box3d[2:4], box3d[4:6], box3d[10:12], box3d[12:14]])
-            min_val = np.argmin(bottom_points, axis=0) # min values in x and y direction
-            max_val = np.argmax(bottom_points, axis=0) # max value in x and y direction
-            bottom_left = bottom_points[min_val[0]]
-            bottom_right = bottom_points[max_val[0]]
-            # from the two remaning bottom points find the max y value for the bottom_center point
-            mask = np.zeros((4, 2), dtype=bool)
-            mask[[min_val[0], max_val[0]]] = True
-            remaining_points = np.ma.array(bottom_points, mask=mask)
-            max_val = np.argmax(remaining_points, axis=0) # max value in x and y direction
-            bottom_center = remaining_points[max_val[1]]
-            # take the top point of the found center as height in pixel
-            top_center = top_points[max_val[1]]
-            height_px = bottom_center[1] - top_center[1]
-            # calc offset
-            center_x_float = scaled_box2d[0] + (float(width) / 2.0)
-            center_y_float = scaled_box2d[1] + (float(height) / 2.0)
-            center_x = max(0, min(mask_width - 1, int(center_x_float))) # index needs to be int and within mask range
-            center_y = max(0, min(mask_height - 1, int(center_y_float))) # index needs to be int and within mask range
-            offset_x = center_x_float - center_x
-            offset_y = center_y_float - center_y
+            for i, [center_x, center_y, width, height] in enumerate(piped_params["gt_2d_info"]):
+                if self.params.REGRESSION_FIELDS["track_offset"].active:
+                    offset_x =  int(transformed["keypoints"][i][0]) - (center_x * self.params.R)
+                    offset_y = int(transformed["keypoints"][i][1]) - (center_y * self.params.R)
+                    ground_truth[center_y][center_x][:][self.params.start_idx("track_offset"):self.params.end_idx("track_offset")] = [offset_x, offset_y]
+                else:
+                    assert(False and "I mean, why even use CenterTracker when we dont regress the t-1 track offset?")
 
-            # fill all of it into the ground_truth mask
-            gt_test = ground_truth[center_y][center_x]
-            gt_regression = ground_truth[center_y][center_x][nb_classes:]
-            gt_regression[0] = offset_x
-            gt_regression[1] = offset_y
-            gt_regression[2] = bottom_left[0]
-            gt_regression[3] = bottom_left[1]
-            gt_regression[4] = bottom_center[0]
-            gt_regression[5] = bottom_center[1]
-            gt_regression[6] = bottom_right[0]
-            gt_regression[7] = bottom_right[1]
-            gt_regression[8] = height_px
-            gt_regression[9] = math.sqrt(obj["x"] ** 2 + obj["y"] ** 2 + obj["z"] ** 2)
-            gt_regression[10] = obj["orientation"]
-            gt_regression[11] = obj["width"]
-            gt_regression[12] = obj["height"]
-            gt_regression[13] = obj["length"]
-
-            # TODO: Add ignore_flags to output
-
-            # create the heatmap with a gausian distribution for lower loss in the area of each object
-            cls_idx = OD_CLASS_IDX[obj["obj_class"]]
-            min_x = max(0, center_x - int(width // 2))
-            max_x = min(mask_width, center_x + int(width // 2))
-            min_y = max(0, center_y - int(height // 2))
-            max_y = min(mask_height, center_y + int(height // 2))
-            for x in range(min_x, max_x):
-                for y in range(min_y, max_y):
-                    var_width = math.pow(((Params.VARIANCE_ALPHA * width) / (6 * Params.R)), 2)
-                    var_height = math.pow(((Params.VARIANCE_ALPHA * height) / (6 * Params.R)), 2)
-                    weight_width = math.pow((x - center_x), 2) / (2 * var_width)
-                    weight_height = math.pow((y - center_y), 2) / (2 * var_height)
-                    weight = math.exp(-(weight_width + weight_height))
-                    ground_truth[y][x][cls_idx] = max(weight, ground_truth[y][x][cls_idx])
-
-            if SHOW_DEBUG_IMG:
-                cv2.line(debug_img, tuple(bottom_left.astype(np.int32)), tuple(bottom_center.astype(np.int32)), (0, 255, 0) , 1) 
-                cv2.line(debug_img, tuple(bottom_center.astype(np.int32)), tuple(bottom_right.astype(np.int32)), (0, 255, 0) , 1) 
-                cv2.line(debug_img, tuple(bottom_center.astype(np.int32)), (int(bottom_center[0]), int(bottom_center[1] - height_px)), (0, 255, 0) , 1)
-
-        if SHOW_DEBUG_IMG:
-            cv2.imshow("Debug Test", debug_img)
+            cv2.imshow("img", input_data[0].astype(np.uint8))
+            cv2.imshow("prev_img", input_data[1].astype(np.uint8))
             cv2.waitKey(0)
+
 
         return raw_data, input_data, ground_truth, piped_params

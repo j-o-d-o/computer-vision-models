@@ -1,3 +1,3 @@
-# Centernet 3D object detection
+# Centertracker - Object tracking based on CenterNet
 
-Plan is to implement this Paper: https://arxiv.org/pdf/2004.01177.pdf
+Implement this Paper: https://arxiv.org/pdf/2004.01177.pdf. Is dependent on and uses code from the centernet implementation.
