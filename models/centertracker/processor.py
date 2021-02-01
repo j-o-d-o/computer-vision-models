@@ -57,7 +57,7 @@ class CenterTrackerProcess(ProcessImages):
             prev_img = input_data[0].copy()
 
             # Translate and scale the image as well as the heatmap to mimic a t-1 frame and add to input_data
-            trans = A.ShiftScaleRotate(shift_limit=0.28, scale_limit=0.35, rotate_limit=0, always_apply=True, border_mode=cv2.BORDER_CONSTANT)
+            trans = A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.15, rotate_limit=0, always_apply=True, border_mode=cv2.BORDER_CONSTANT)
             transform = A.ReplayCompose(
                 [trans],
                 keypoint_params=A.KeypointParams(format='xy', remove_invisible=False),
@@ -67,7 +67,7 @@ class CenterTrackerProcess(ProcessImages):
             transformed = transform(image=prev_img, prev_heatmap=prev_heatmap, keypoints=keypoints)
             input_data.append(transformed["image"])
             input_data.append(transformed["prev_heatmap"])
-            
+
             # Add to ground_truth: Regression param offset to t-1 object using the scale and dx, dy changes from the previous image transformation
             # applied_params = transformed["replay"]["transforms"][0]["params"]
             # scale = applied_params["scale"]
@@ -76,15 +76,18 @@ class CenterTrackerProcess(ProcessImages):
 
             for i, [center_x, center_y, width, height] in enumerate(piped_params["gt_2d_info"]):
                 if self.params.REGRESSION_FIELDS["track_offset"].active:
-                    offset_x =  int(transformed["keypoints"][i][0]) - (center_x * self.params.R)
-                    offset_y = int(transformed["keypoints"][i][1]) - (center_y * self.params.R)
+                    prev_center_x = transformed["keypoints"][i][0]
+                    prev_center_y = transformed["keypoints"][i][1]
+
+                    if prev_center_x < 0 or prev_center_x > prev_img.shape[1] or prev_center_y < 0 or prev_center_y > prev_img.shape[0]:
+                        # previous center is outside of heatmap bounds, set offset to 0
+                        offset_x = 0
+                        offset_y = 0
+                    else:
+                        offset_x = prev_center_x - (center_x * self.params.R)
+                        offset_y = prev_center_y - (center_y * self.params.R)
                     ground_truth[center_y][center_x][:][self.params.start_idx("track_offset"):self.params.end_idx("track_offset")] = [offset_x, offset_y]
                 else:
                     assert(False and "I mean, why even use CenterTracker when we dont regress the t-1 track offset?")
-
-            cv2.imshow("img", input_data[0].astype(np.uint8))
-            cv2.imshow("prev_img", input_data[1].astype(np.uint8))
-            cv2.waitKey(0)
-
 
         return raw_data, input_data, ground_truth, piped_params
