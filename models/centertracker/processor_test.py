@@ -39,17 +39,17 @@ class TestProcessors:
 
         batch_x, batch_y = train_gen[0]
 
-        for i, input_data in enumerate(batch_x):
-            assert len(input_data) > 0
+        batch_size = len(batch_x["img"])
+        for i in range(batch_size):
             # input_data is a list in this case and consist of:
             # [0]: img current frame
             # [1]: img prev frame
             # [3]: single channel heatmap
-            curr_img = input_data[0]
-            prev_img = input_data[1]
+            curr_img = batch_x["img"][i]
+            prev_img = batch_x["prev_img"][i]
 
             mask_img = to_3channel(batch_y[i], OD_CLASS_MAPPING, 0.1, True)
-            prev_mask_img = to_3channel(input_data[2], OrderedDict([("obj", (255, 255, 255))]), 0.1, True)
+            prev_mask_img = to_3channel(batch_x["prev_heatmap"][i], OrderedDict([("obj", (255, 255, 255))]), 0.1, True)
             cv2.imshow("img", curr_img.astype(np.uint8))
             cv2.imshow("prev_img", prev_img.astype(np.uint8))
             cv2.imshow("prev_heatmap", prev_mask_img)

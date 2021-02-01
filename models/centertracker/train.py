@@ -5,7 +5,7 @@ from common.utils import Logger, Config
 from common.callbacks import SaveToStorage
 from common.processors import AugmentImages
 from data.od_spec import OD_CLASS_MAPPING
-from models.centernet import ProcessImages, CenternetParams, CenternetLoss, create_model
+from models.centertracker import CenterTrackerProcess, CentertrackerLoss, CentertrackerParams, create_model
 
 print("Using Tensorflow Version: " + tf.__version__)
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     Logger.init()
     Logger.remove_file_logger()
 
-    params = CenternetParams(len(OD_CLASS_MAPPING))
+    params = CentertrackerParams(len(OD_CLASS_MAPPING))
     params.REGRESSION_FIELDS["l_shape"].active = False
     params.REGRESSION_FIELDS["3d_info"].active = False
 
@@ -32,7 +32,7 @@ if __name__ == "__main__":
         shuffle_data=True
     )
 
-    processors = [ProcessImages(params), AugmentImages()]
+    processors = [CenterTrackerProcess(params)]
     train_gen = MongoDBGenerator(
         collection_details,
         train_data,
@@ -46,10 +46,9 @@ if __name__ == "__main__":
         processors=processors
     )
 
-    loss = CenternetLoss(params)
-    metrics = [loss.class_focal_loss, loss.r_offset_loss, loss.fullbox_loss, loss.l_shape_loss,
-        loss.radial_dist_loss, loss.orientation_loss, loss.obj_dims_loss]
-    metrics = [loss.class_focal_loss, loss.r_offset_loss, loss.fullbox_loss]
+    loss = CenterTrackerProcess(params)
+    # metrics = [loss.class_focal_loss, loss.r_offset_loss, loss.fullbox_loss]
+    metrics = []
     opt = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07) 
 
     if params.LOAD_PATH is None:
@@ -62,7 +61,7 @@ if __name__ == "__main__":
     model.summary()
 
     # Train Model
-    storage_path = "./trained_models/centernet_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
+    storage_path = "./trained_models/centertracker_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
     callbacks = [SaveToStorage(storage_path, model, False), tensorboard_callback]
     params.save_to_storage(storage_path)

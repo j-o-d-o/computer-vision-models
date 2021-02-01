@@ -47,14 +47,14 @@ class CenterTrackerProcess(ProcessImages):
             assert(False and "Not implemented yet")
         else:
             _, input_data, ground_truth, _ = super().process(raw_data, input_data, ground_truth, piped_params)
-             # make input_data a list since we will have multiple input channels
-            input_data = [input_data]
+             # make input_data a dict since we will have multiple input channels
+            input_data = { "img": input_data }
 
             # create previous heatmap
             prev_heatmap = self.gen_prev_heatmap((ground_truth.shape[0], ground_truth.shape[1]), piped_params["gt_2d_info"], piped_params["roi"])
 
             # copy as prev image
-            prev_img = input_data[0].copy()
+            prev_img = input_data["img"].copy()
 
             # Translate and scale the image as well as the heatmap to mimic a t-1 frame and add to input_data
             trans = A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.15, rotate_limit=0, always_apply=True, border_mode=cv2.BORDER_CONSTANT)
@@ -65,8 +65,8 @@ class CenterTrackerProcess(ProcessImages):
             )
             keypoints = list(np.array(piped_params["gt_2d_info"])[:,:2] * self.params.R)
             transformed = transform(image=prev_img, prev_heatmap=prev_heatmap, keypoints=keypoints)
-            input_data.append(transformed["image"])
-            input_data.append(transformed["prev_heatmap"])
+            input_data["prev_img"] = transformed["image"]
+            input_data["prev_heatmap"] = transformed["prev_heatmap"]
 
             # Add to ground_truth: Regression param offset to t-1 object using the scale and dx, dy changes from the previous image transformation
             # applied_params = transformed["replay"]["transforms"][0]["params"]

@@ -38,7 +38,7 @@ def bottle_neck_block(inputs: tf.Tensor, filters: int, expansion_factor: int = 6
     return x
 
 
-def upsample_block(inputs: tf.Tensor, concat: tf.Tensor, filters: int) -> tf.Tensor:
+def upsample_block(inputs: tf.Tensor, concat: tf.Tensor, filters: int, name: str = None) -> tf.Tensor:
     """
     Upsample block will upsample one tensor x2 and concatenate with another tensor of the size
     :params inputs: Input tensor to be upsampled by x2
@@ -58,5 +58,5 @@ def upsample_block(inputs: tf.Tensor, concat: tf.Tensor, filters: int) -> tf.Ten
     # Conv
     x = Conv2D(filters, kernel_size=3, use_bias=False, padding='same')(x)
     x = BatchNormalization()(x)
-    x = ReLU()(x)
+    x = ReLU(name=name)(x)
     return x

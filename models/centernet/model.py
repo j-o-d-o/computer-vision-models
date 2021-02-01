@@ -40,7 +40,7 @@ def create_model(params: CenternetParams):
     # -> with R = 2, we need 2 upsamples
 
     x = upsample_block(fms[2], fms[1], 2 * fs)
-    x = upsample_block(x, fms[0], 2 * fs)
+    x = upsample_block(x, fms[0], 2 * fs, name="encoder_output")
 
     output_layer_arr = []
 

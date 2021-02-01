@@ -29,6 +29,8 @@ class CenternetParams:
         # Output Mask
         self.R = 2 # scale from input image to output heat map
         self.VARIANCE_ALPHA = 0.52 # variance to determine how spread out the class blobs are on the ground truth
+        self.MASK_HEIGHT = self.INPUT_HEIGHT // self.R
+        self.MASK_WIDTH = self.INPUT_WIDTH // self.R
 
         # Loss - Class
         self.FOCAL_LOSS_ALPHA = 2.0
@@ -71,7 +73,7 @@ class CenternetParams:
     def serialize(self):
         dict_data = {
             "input": [self.INPUT_HEIGHT, self.INPUT_WIDTH, 3],
-            "mask": [self.INPUT_HEIGHT // self.R, self.INPUT_WIDTH // self.R, self.mask_channels()],
+            "mask": [self.MASK_HEIGHT, self.MASK_WIDTH, self.mask_channels()],
             "batch_size": self.BATCH_SIZE,
             "load_path": self.LOAD_PATH,
             "output_fields": []
