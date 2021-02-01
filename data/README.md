@@ -58,6 +58,12 @@ nuimage_od.py --path /path/to/nuimages-v1.0-all
               --version v1.0-train
 ```
 
-## NuScenes - 2D and 3D Object Detection
-Work in progress<br>
+## NuScenes - 2D and 3D Object Tracking
 Download: https://www.nuscenes.org/download (You will need to register and login first)
+- Full dataset (v1.0) - Metadata
+- Full dataset (v1.0) - File blobs part [1-10] - Keyframe blobs
+Afterwards you will have to move everything into a folder named "samples", same as with the nuImages folder structure.
+```bash
+# Run script to convert NuScenes data to od_spec and upload to MongoDB
+nuscenes_od.py --path /path/to/nuscenes-v1.0-all
+```

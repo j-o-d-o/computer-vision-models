@@ -36,7 +36,7 @@ class Object:
   z: float = None  # position on the z-axis in [m] in camera coordinate system
 
   # properties only available if has_track_info on the OdEntry is true
-  trackId: int = None # id of the track
+  instance_token: int = None # token of the track
 
   def get_dict(self):
     return self.__dict__

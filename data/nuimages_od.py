@@ -109,13 +109,13 @@ def main(args):
                 bbox = [obj["bbox"][0], obj["bbox"][1], obj["bbox"][2] - obj["bbox"][0], obj["bbox"][3] - obj["bbox"][1]]
                 # cv2.rectangle(img, (bbox[0], bbox[1]), (obj["bbox"][0] + bbox[2], obj["bbox"][1] + bbox[3]), (0, 255, 0), 1)
                 entry.objects.append(Object(
-                        obj_class=obj_class,
-                        box2d=bbox,
-                        box3d=None,
-                        box3d_valid=False,
-                        truncated=None,
-                        occluded=None,
-                    ))
+                    obj_class=obj_class,
+                    box2d=bbox,
+                    box3d=None,
+                    box3d_valid=False,
+                    truncated=None,
+                    occluded=None,
+                ))
 
         # img = cv2.resize(img, (800, 450))
         # cv2.imshow("NuImage", img)
