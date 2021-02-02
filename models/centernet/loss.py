@@ -36,17 +36,17 @@ class CenternetLoss(Loss):
         pos_loss = (
             -pos_mask
             * tf.math.pow(1.0 - y_pred_class, self.params.FOCAL_LOSS_ALPHA)
-            * tf.math.log(tf.clip_by_value(y_pred_class, 1e-4, 1. - 1e-4))
+            * tf.math.log(tf.clip_by_value(y_pred_class, 0.01, 0.99))
         )
         neg_loss = (
             -neg_mask
             * tf.math.pow(1.0 - y_true_class, self.params.FOCAL_LOSS_BETA)
             * tf.math.pow(y_pred_class, self.params.FOCAL_LOSS_ALPHA)
-            * tf.math.log(tf.clip_by_value(1.0 - y_pred_class, 1e-4, 1. - 1e-4))
+            * tf.math.log(tf.clip_by_value(1.0 - y_pred_class, 0.01, 0.99))
         )
 
         n = tf.reduce_sum(pos_mask)
-        pos_loss_val = tf.reduce_sum(pos_loss)
+        pos_loss_val = tf.reduce_sum(pos_loss) * 1.2 # since we have semseg additionally we rather have more than less objects
         neg_loss_val = tf.reduce_sum(neg_loss)
 
         loss_val = tf.cond(tf.greater(n, 0), lambda: (pos_loss_val + neg_loss_val) / n, lambda: neg_loss_val)
