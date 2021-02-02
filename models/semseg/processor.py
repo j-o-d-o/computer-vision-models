@@ -21,8 +21,6 @@ def key_to_index(value):
 def to_hex(img):
     """
     Convert 3 channel representation to single hex channel
-    :param array: 2d image with rgb channels
-    :return: 2d image with single hex value
     """
     img = np.asarray(img, dtype='uint32')
     return (img[:, :, 0] << 16) + (img[:, :, 1] << 8) + img[:, :, 2]

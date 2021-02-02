@@ -44,3 +44,7 @@ def create_model(input_height: int, input_width: int) -> tf.keras.Model:
 
     model = Model(inputs=input_layer, outputs=[out])
     return model
+
+# params = SemsegParams()
+# model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
+# model.summary()

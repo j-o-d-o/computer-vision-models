@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.utils import Config, Logger, to_3channel
-from common.processors import AugmentImages
+from models.semseg.params import SemsegParams
 from models.semseg.processor import ProcessImages
 from data.semseg_spec import SEMSEG_CLASS_MAPPING
 
@@ -14,6 +14,8 @@ class TestProcessors:
         """
         Logger.init()
         Logger.remove_file_logger()
+
+        self.params = SemsegParams()
 
         # get one entry from the database
         Config.add_config('./config.ini')
@@ -31,7 +33,7 @@ class TestProcessors:
             self.collection_details,
             self.train_data,
             batch_size=3,
-            processors=[ProcessImages(), AugmentImages()]
+            processors=[ProcessImages(self.params)]
         )
 
         batch_x, batch_y = train_gen[0]
