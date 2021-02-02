@@ -96,20 +96,16 @@ class ProcessImages(IPreProcessor):
         # some augmentation
         transform = A.Compose([
             A.IAAAdditiveGaussianNoise(p=0.2),
-            A.OneOf(
-                [A.CLAHE(p=1.0),
-                A.RandomBrightness(p=1.0),
-                A.RandomGamma(p=1.0)
-            ], p=0.5),
             A.OneOf([
-                A.IAASharpen(p=0.8),
-                A.Blur(blur_limit=3, p=0.2),
-                A.MotionBlur(blur_limit=3, p=0.3)
+                A.IAASharpen(p=0.2),
+                A.Blur(blur_limit=3, p=0.1),
             ] , p=0.5),
             A.OneOf([
                 A.RandomBrightnessContrast(p=1.0),
                 A.HueSaturationValue(p=1.0),
-            ],p=0.5),
+                A.RandomGamma(p=1.0),
+                A.CLAHE(p=1.0)
+            ],p=0.3),
             A.OneOf([
                 A.RandomFog(p=1.0),
                 A.RandomRain(p=1.0),
@@ -172,9 +168,10 @@ class ProcessImages(IPreProcessor):
                     bottom_right = (int(cp[0] + (width / 2.0)), int(cp[1] + (height / 2.0)))
                     cv2.rectangle(debug_img, top_left, bottom_right, (255, 0, 0), 1)
                     # l-shape
-                    cv2.line(debug_img, tuple((bottom_left_off + cp).astype(np.int32)), tuple((bottom_center_off + cp).astype(np.int32)), (0, 255, 0) , 1) 
-                    cv2.line(debug_img, tuple((bottom_center_off + cp).astype(np.int32)), tuple((bottom_right_off + cp).astype(np.int32)), (0, 255, 0) , 1) 
-                    cv2.line(debug_img, tuple((bottom_center_off + cp).astype(np.int32)), (int((bottom_center_off + cp)[0]), int((bottom_center_off + cp)[1] - center_height)), (0, 255, 0) , 1)
+                    if valid_l_shape:
+                        cv2.line(debug_img, tuple((bottom_left_off + cp).astype(np.int32)), tuple((bottom_center_off + cp).astype(np.int32)), (0, 255, 0) , 1) 
+                        cv2.line(debug_img, tuple((bottom_center_off + cp).astype(np.int32)), tuple((bottom_right_off + cp).astype(np.int32)), (0, 255, 0) , 1) 
+                        cv2.line(debug_img, tuple((bottom_center_off + cp).astype(np.int32)), (int((bottom_center_off + cp)[0]), int((bottom_center_off + cp)[1] - center_height)), (0, 255, 0) , 1)
 
         # TODO: Add ignore_flags to output
 

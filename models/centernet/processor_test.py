@@ -18,20 +18,20 @@ class TestProcessors:
 
         # get some entries from the database
         Config.add_config('./config.ini')
-        self.collection_details = ("local_mongodb", "object_detection", "nuimages")
+        self.collection_details = ("local_mongodb", "object_detection", "kitti")
 
         # Create Data Generators
         self.train_data, self.val_data = load_ids(
             self.collection_details,
             data_split=(70, 30),
-            limit=200
+            limit=250
         )
 
     def test_process_image(self):
         train_gen = MongoDBGenerator(
             self.collection_details,
             self.train_data,
-            batch_size=10,
+            batch_size=30,
             processors=[ProcessImages(self.params)]
         )
 

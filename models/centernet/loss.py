@@ -55,13 +55,13 @@ class CenternetLoss(Loss):
     def r_offset_loss(self, y_true, y_pred):
         y_true_feat = y_true[:, :, :, self.r_offset_pos[0]:self.r_offset_pos[1]]
         y_pred_feat = y_pred[:, :, :, self.r_offset_pos[0]:self.r_offset_pos[1]]
-        loss_val = self.calc_loss(y_true, y_true_feat, y_pred_feat)
+        loss_val = self.calc_loss(y_true, y_true_feat, y_pred_feat, loss_type="mae")
         return loss_val
 
     def fullbox_loss(self, y_true, y_pred):
         y_true_feat = y_true[:, :, :, self.fullbox_pos[0]:self.fullbox_pos[1]]
         y_pred_feat = y_pred[:, :, :, self.fullbox_pos[0]:self.fullbox_pos[1]]
-        loss_val = self.calc_loss(y_true, y_true_feat, y_pred_feat)
+        loss_val = self.calc_loss(y_true, y_true_feat, y_pred_feat, loss_type="mae")
         return loss_val
 
     def l_shape_loss(self, y_true, y_pred):

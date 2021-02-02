@@ -36,32 +36,25 @@ def process_2d_output(output_mask, roi: Roi, params: CenternetParams, min_conf_v
                 # mandatory fields, all others are optional depending on active regression fields
                 obj = {"cls_idx": cls_idx, "center": convert_back_to_roi(roi, [x * params.R, y * params.R])}
 
-                if params.REGRESSION_FIELDS["r_offset"]:
+                if params.REGRESSION_FIELDS["r_offset"].active:
                     r_offset = curr_pixel[params.start_idx("r_offset"):params.end_idx("r_offset")]
                     obj["center"] = convert_back_to_roi(roi, [(x + r_offset[0]) * params.R, (y + r_offset[1]) * params.R])
                 
-                if params.REGRESSION_FIELDS["fullbox"]:
+                if params.REGRESSION_FIELDS["fullbox"].active:
                     fullbox = curr_pixel[params.start_idx("fullbox"):params.end_idx("fullbox")]
                     width = fullbox[0] * (1.0 / roi.scale)
                     height = fullbox[1] * (1.0 / roi.scale)
                     # fill as [top_left_x, top_left_y, width, height]
                     obj["fullbox"] = [obj["center"][0] - (width / 2.0), obj["center"][1] - (height / 2.0), width, height]
 
-                if params.REGRESSION_FIELDS["l_shape"]:
+                if params.REGRESSION_FIELDS["l_shape"].active:
                     l_shape = curr_pixel[params.start_idx("l_shape"):params.end_idx("l_shape")]
                     obj["bottom_left"] = obj["center"] + l_shape[0: 2] * (1.0 / roi.scale)
                     obj["bottom_right"] = obj["center"] + l_shape[2: 4] * (1.0 / roi.scale)
                     obj["bottom_center"] = obj["center"] + l_shape[4: 6] * (1.0 / roi.scale)
                     obj["center_height"] = l_shape[6] * (1.0 / roi.scale)
 
-                if params.REGRESSION_FIELDS["l_shape"]:
-                    l_shape = curr_pixel[params.start_idx("l_shape"):params.end_idx("l_shape")]
-                    obj["bottom_left"] = obj["center"] + l_shape[0: 2] * (1.0 / roi.scale)
-                    obj["bottom_right"] = obj["center"] + l_shape[2: 4] * (1.0 / roi.scale)
-                    obj["bottom_center"] = obj["center"] + l_shape[4: 6] * (1.0 / roi.scale)
-                    obj["center_height"] = l_shape[6] * (1.0 / roi.scale)
-
-                if params.REGRESSION_FIELDS["3d_info"]:
+                if params.REGRESSION_FIELDS["3d_info"].active:
                     l_shape = curr_pixel[params.start_idx("3d_info"):params.end_idx("3d_info")]
                     # TODO: fill 3d info to object
 

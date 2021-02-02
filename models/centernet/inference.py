@@ -59,13 +59,13 @@ if __name__ == "__main__":
         print("Using Tensorflow")
 
     # alternative data source, mp4 video
-    cap = cv2.VideoCapture('/home/jo/training_data/speedchallenge/data/train.mp4')
-    while (cap.isOpened()):
-        ret, img = cap.read()
-    # documents = collection.find({}).limit(20)
-    # for doc in documents:
-    #     decoded_img = np.frombuffer(doc["img"], np.uint8)
-    #     img = cv2.imdecode(decoded_img, cv2.IMREAD_COLOR)
+    # cap = cv2.VideoCapture('/home/jo/training_data/speedchallenge/data/train.mp4')
+    # while (cap.isOpened()):
+    #     ret, img = cap.read()
+    documents = collection.find({}).limit(20)
+    for doc in documents:
+        decoded_img = np.frombuffer(doc["img"], np.uint8)
+        img = cv2.imdecode(decoded_img, cv2.IMREAD_COLOR)
 
         input_img, roi = resize_img(img, input_shape[2], input_shape[1], offset_bottom=args.offset_bottom)
 
@@ -84,11 +84,15 @@ if __name__ == "__main__":
             elapsed_time = time.time() - start_time
             output_mask = raw_result[0]
 
-        heatmap = to_3channel(output_mask, OD_CLASS_MAPPING, 0.001, True)
+        heatmap = to_3channel(output_mask, OD_CLASS_MAPPING, 0.2, True)
         r = float(input_shape[1]) / float(output_shape[1])
         # TODO: Create parameters from json file instead of using the default values
         #       that way we dont have to remember the exact parameters for every model we train
         params = CenternetParams(len(OD_CLASS_MAPPING))
+        # TODO: On inference, read the param file from the data folder
+        params.REGRESSION_FIELDS["l_shape"].active = False
+        params.REGRESSION_FIELDS["3d_info"].active = False
+
         objects = process_2d_output(output_mask, roi, params, min_conf_value=0.2)
         for obj in objects:
             color = list(OD_CLASS_MAPPING.values())[obj["cls_idx"]]

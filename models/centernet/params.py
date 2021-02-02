@@ -39,7 +39,7 @@ class CenternetParams:
         self.NB_CLASSES = nb_classes # need to calc the indices of all the regression fields
         # Loss - Regression
         self.REGRESSION_FIELDS = OrderedDict([
-            ("r_offset", CenternetParams.RegressionField(True, 2, 0.7, "x, y")),
+            ("r_offset", CenternetParams.RegressionField(True, 2, 0.2, "x, y")),
             ("fullbox", CenternetParams.RegressionField(True, 2, 0.1, "width, height (in [px] relative to input)")),
             ("l_shape", CenternetParams.RegressionField(True, 7, 0.1, "bottom_left_offset, bottom_right_offset, bottom_center_offset, center_height, (all points (x,y) in [px] relative to input)")),
             ("3d_info", CenternetParams.RegressionField(True, 5, [0.1, 0.2, 0.1], "radial_dist [m], orientation [rad], width, height, length [m] (all in cam coordinate system)")),
