@@ -6,29 +6,33 @@ import numpy as np
 from kerassurgeon.operations import insert_layer
 from models.centertracker.params import CentertrackerParams
 import models.centernet as centernet
+from tensorflow.keras.utils import plot_model
 
 
 def create_model(params: CentertrackerParams):
     base_model = centernet.create_model(params)
-    curr_img_input = base_model.inputs[0]
-    prev_img_input = Input(shape=(params.INPUT_HEIGHT, params.INPUT_WIDTH, 3))
-    prev_heatmap_input = Input(shape=(params.MASK_HEIGHT, params.MASK_WIDTH, 1))
+    curr_img_input = Input(shape=(params.INPUT_HEIGHT, params.INPUT_WIDTH, 3), name="current_img")
+    prev_img_input = Input(shape=(params.INPUT_HEIGHT, params.INPUT_WIDTH, 3), name="prev_img")
+    prev_heatmap_input = Input(shape=(params.MASK_HEIGHT, params.MASK_WIDTH, 1), name="prev_heatmap")
 
-    # rewire the added image from t-1 to the second layer of the base_model
-    img_input = Concatenate(axis=3)([curr_img_input, prev_img_input])
-    base_model.layers[1].input = img_input
-
-    base_feature = base_model.get_layer("encoder_output").output
-    output_layer = base_model.output
+    # upsample the heatmap to the same size as the images and make it compatiable to the base model input shape
+    prev_heatmap = Conv2DTranspose(8, kernel_size=2, strides=(2, 2), use_bias=False, padding='same')(prev_heatmap_input)
+    new_input = Concatenate(axis=3)([curr_img_input, prev_img_input, prev_heatmap])
+    new_input = Conv2D(3, (3, 3), padding="same")(new_input)
+    
+    # output tensor
+    output_tensor: tf.Tensor = base_model(new_input)
+    # centernet/encoder_output_relu/Identity
+    feature_map_tensor = output_tensor.graph.get_tensor_by_name("centernet/encoder_output/Identity:0")
 
     # All other regerssion parameters are optional, but note that the order is important here and should be as in the OrderedDict REGRESSION_FIELDS
     if params.REGRESSION_FIELDS["track_offset"].active:
         # Create location offset due to R scaling
-        track_offset = Conv2D(32, (3, 3), padding="same", use_bias=False)(base_feature)
+        track_offset = Conv2D(32, (3, 3), padding="same", use_bias=False)(feature_map_tensor)
         track_offset = BatchNormalization()(track_offset)
         track_offset = ReLU()(track_offset)
         track_offset = Conv2D(params.REGRESSION_FIELDS["track_offset"].size, (1, 1), padding="valid", activation=None)(track_offset)
-        output_layer = Concatenate(axis=3)([output_layer, track_offset])
+        output_tensor = Concatenate(axis=3)([output_tensor, track_offset])
 
     # Create Model
     input_dict = {
@@ -36,6 +40,15 @@ def create_model(params: CentertrackerParams):
         "prev_img": prev_img_input,
         "prev_heatmap": prev_heatmap_input
     }
-    model = Model(inputs=input_dict, outputs=output_layer, name="centernet")
-    model.summary()
+    model = Model(inputs=[*base_model.inputs, base_model.output], outputs=output_tensor, name="centernet")
     return model
+
+params = CentertrackerParams(6)
+model = create_model(params)
+# model.summary()
+plot_model(model, to_file="./centertrack.png")
+
+# graph_def = output_tensor.graph.as_graph_def()
+# for node in graph_def.node:
+#     if "encoder" in node.name:
+#         print(f"{node.name} {node.op}")

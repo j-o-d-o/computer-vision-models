@@ -1,5 +1,6 @@
 # Check: https://coral.ai/docs/edgetpu/models-intro/#supported-operations for supported ops on EdgeTpu
 import tensorflow as tf
+from tensorflow.keras.utils import plot_model
 from tensorflow.keras import initializers, regularizers, Model
 from tensorflow.keras.layers import Conv2DTranspose, BatchNormalization, ReLU, Conv2D, DepthwiseConv2D, Add, Input, Concatenate
 import numpy as np
@@ -17,18 +18,18 @@ def create_model(params: CenternetParams):
     x = ReLU(6.)(x)
 
     # Downsample
-    x = bottle_neck_block(x, 1 * fs)
-    x = bottle_neck_block(x, 1 * fs)
+    x = bottle_neck_block(x, 1 * fs, name="bottle_neck_1")
+    x = bottle_neck_block(x, 1 * fs, name="bottle_neck_2")
     fms.append(x)
-    x = bottle_neck_block(x, 1 * fs, downsample=True)
-    x = bottle_neck_block(x, 2 * fs)
+    x = bottle_neck_block(x, 1 * fs, downsample=True, name="bottle_neck_3")
+    x = bottle_neck_block(x, 2 * fs, name="bottle_neck_4")
     fms.append(x)
 
-    x = bottle_neck_block(x, 2 * fs, downsample=True)
-    d1 = bottle_neck_block(x, 2 * fs, dilation_rate=3)
-    d2 = bottle_neck_block(x, 2 * fs, dilation_rate=6)
-    d3 = bottle_neck_block(x, 2 * fs, dilation_rate=9)
-    d4 = bottle_neck_block(x, 2 * fs, dilation_rate=12)
+    x = bottle_neck_block(x, 2 * fs, downsample=True, name="bottle_neck_5")
+    d1 = bottle_neck_block(x, 2 * fs, dilation_rate=3, name="dilated_1")
+    d2 = bottle_neck_block(x, 2 * fs, dilation_rate=6, name="dilated_2")
+    d3 = bottle_neck_block(x, 2 * fs, dilation_rate=9, name="dilated_3")
+    d4 = bottle_neck_block(x, 2 * fs, dilation_rate=12, name="dilated_4")
     x = Concatenate()([d1, d2, d3, d4])
     x = Conv2D(2 * fs, kernel_size=1, padding="same")(x)
     fms.append(x)
@@ -39,7 +40,7 @@ def create_model(params: CenternetParams):
     # [2]: (None, 76, 18, x)
     # -> with R = 2, we need 2 upsamples
 
-    x = upsample_block(fms[2], fms[1], 2 * fs)
+    x = upsample_block(fms[2], fms[1], 2 * fs, name="upsampled_1")
     x = upsample_block(x, fms[0], 2 * fs, name="encoder_output")
 
     output_layer_arr = []
@@ -48,7 +49,7 @@ def create_model(params: CenternetParams):
     heatmap = Conv2D(32, (3, 3), padding="same", use_bias=False)(x)
     heatmap = BatchNormalization()(heatmap)
     heatmap = ReLU()(heatmap)
-    heatmap = Conv2D(params.NB_CLASSES, (1, 1), padding="valid", activation=tf.nn.sigmoid)(heatmap)
+    heatmap = Conv2D(params.NB_CLASSES, (1, 1), padding="valid", activation=tf.nn.sigmoid, name="heatmap_head")(heatmap)
     output_layer_arr.append(heatmap)
 
     # All other regerssion parameters are optional, but note that the order is important here and should be as in the OrderedDict REGRESSION_FIELDS
@@ -57,7 +58,7 @@ def create_model(params: CenternetParams):
         offset = Conv2D(16, (3, 3), padding="same", use_bias=False)(x)
         offset = BatchNormalization()(offset)
         offset = ReLU()(offset)
-        offset = Conv2D(params.REGRESSION_FIELDS["r_offset"].size, (1, 1), padding="valid", activation=None)(offset)
+        offset = Conv2D(params.REGRESSION_FIELDS["r_offset"].size, (1, 1), padding="valid", activation=None, name="r_offset_head")(offset)
         output_layer_arr.append(offset)
 
     if params.REGRESSION_FIELDS["fullbox"].active:
@@ -65,7 +66,7 @@ def create_model(params: CenternetParams):
         fullbox = Conv2D(32, (3, 3), padding="same", use_bias=False)(x)
         fullbox = BatchNormalization()(fullbox)
         fullbox = ReLU()(fullbox)
-        fullbox = Conv2D(params.REGRESSION_FIELDS["fullbox"].size, (1, 1), padding="valid", activation=None)(fullbox)
+        fullbox = Conv2D(params.REGRESSION_FIELDS["fullbox"].size, (1, 1), padding="valid", activation=None, name="fullbox_head")(fullbox)
         output_layer_arr.append(fullbox)
 
     if params.REGRESSION_FIELDS["l_shape"].active:
@@ -73,7 +74,7 @@ def create_model(params: CenternetParams):
         l_shape = Conv2D(32, (3, 3), padding="same", use_bias=False)(x)
         l_shape = BatchNormalization()(l_shape)
         l_shape = ReLU()(l_shape)
-        l_shape = Conv2D(params.REGRESSION_FIELDS["l_shape"].size, (1, 1), padding="valid", activation=None)(l_shape)
+        l_shape = Conv2D(params.REGRESSION_FIELDS["l_shape"].size, (1, 1), padding="valid", activation=None, name="l_shape_head")(l_shape)
         output_layer_arr.append(l_shape)
 
     if params.REGRESSION_FIELDS["3d_info"].active:
@@ -81,27 +82,32 @@ def create_model(params: CenternetParams):
         radial_dist = Conv2D(16, (3, 3), padding="same", use_bias=False)(x)
         radial_dist = BatchNormalization()(radial_dist)
         radial_dist = ReLU()(radial_dist)
-        radial_dist = Conv2D(1, (1, 1), padding="valid", activation=None)(radial_dist)
+        radial_dist = Conv2D(1, (1, 1), padding="valid", activation=None, name="radial_dist_head")(radial_dist)
         output_layer_arr.append(radial_dist)
 
         # Create orientation output
         orientation = Conv2D(16, (3, 3), padding="same", use_bias=False)(x)
         orientation = BatchNormalization()(orientation)
         orientation = ReLU()(orientation)
-        orientation = Conv2D(1, (1, 1), padding="valid", activation=None)(orientation)
+        orientation = Conv2D(1, (1, 1), padding="valid", activation=None, name="orientation_head")(orientation)
         output_layer_arr.append(orientation)
 
         # Create object dimensions in [m] (width, height, length)
         obj_dims = Conv2D(16, (3, 3), padding="same", use_bias=False)(x)
         obj_dims = BatchNormalization()(obj_dims)
         obj_dims = ReLU()(obj_dims)
-        obj_dims = Conv2D(3, (1, 1), padding="valid", activation=None)(obj_dims)
+        obj_dims = Conv2D(3, (1, 1), padding="valid", activation=None, name="obj_dims_head")(obj_dims)
         output_layer_arr.append(obj_dims)
 
     # Concatenate output
-    output_layer = Concatenate(axis=3)(output_layer_arr)
+    output_layer = Concatenate(axis=3, name="output_layer")(output_layer_arr)
 
     # Create Model
     model = Model(inputs=inputs, outputs=output_layer, name="centernet")
 
     return model
+
+# params = CenternetParams(6)
+# model = create_model(params)
+# model.summary()
+# plot_model(model, to_file="./centernet.png")

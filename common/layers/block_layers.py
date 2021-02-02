@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import BatchNormalization, ReLU, Conv2D, DepthwiseConv2D, Add, Conv2DTranspose, Concatenate
 
 
-def bottle_neck_block(inputs: tf.Tensor, filters: int, expansion_factor: int = 6, dilation_rate: int = 1, downsample: bool =False) -> tf.Tensor:
+def bottle_neck_block(inputs: tf.Tensor, filters: int, expansion_factor: int = 6, dilation_rate: int = 1, downsample: bool =False, name: str = None) -> tf.Tensor:
     """
     Bottleneck blocks (As introduced in MobileNet(v2): https://arxiv.org/abs/1801.04381) and extended in functionallity to downsample and to add dilation rates
     :params inputs: Input tensor
@@ -31,7 +31,7 @@ def bottle_neck_block(inputs: tf.Tensor, filters: int, expansion_factor: int = 6
         skip = Conv2D(filters, kernel_size=3, strides=2, padding="same")(skip)
     elif input_filters != filters:
         skip = Conv2D(filters, (1, 1), padding="same")(skip)
-    x = Add()([skip, x])
+    x = Add(name=name)([skip, x])
     # TODO: Remove these two layers?
     # x = BatchNormalization()(x)
     # x = ReLU()(x)
