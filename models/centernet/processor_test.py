@@ -13,15 +13,16 @@ class TestProcessors:
         Logger.remove_file_logger()
 
         self.params = CenternetParams(len(OD_CLASS_MAPPING))
+        self.params.REGRESSION_FIELDS["l_shape"].active = False
+        self.params.REGRESSION_FIELDS["3d_info"].active = False
 
         # get some entries from the database
         Config.add_config('./config.ini')
-        self.collection_details = ("local_mongodb", "object_detection", "kitti")
+        self.collection_details = ("local_mongodb", "object_detection", "nuimages")
 
         # Create Data Generators
         self.train_data, self.val_data = load_ids(
             self.collection_details,
-            mongodb_filter={"has_3D_info": True},
             data_split=(70, 30),
             limit=200
         )

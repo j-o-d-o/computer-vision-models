@@ -7,6 +7,7 @@ from common.processors import IPreProcessor
 from common.utils import resize_img
 from data.od_spec import OD_CLASS_MAPPING, OD_CLASS_IDX
 from models.centernet.params import CenternetParams
+import albumentations as A
 
 
 class ProcessImages(IPreProcessor):
@@ -46,6 +47,7 @@ class ProcessImages(IPreProcessor):
         fullbox_height = height * self.params.R
 
         valid_l_shape = False
+        bottom_left_off = bottom_right_off = bottom_center_off = center_height = None
         if obj["box3d_valid"]:
             # find bottom_left and bottom_right points
             offsetsBox3d = [roi.offset_left, roi.offset_top] * 8
@@ -90,6 +92,35 @@ class ProcessImages(IPreProcessor):
         img_encoded = np.frombuffer(raw_data["img"], np.uint8)
         input_data_unscaled = cv2.imdecode(img_encoded, cv2.IMREAD_COLOR)
         input_data, roi = resize_img(input_data_unscaled, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM)
+        
+        # some augmentation
+        transform = A.Compose([
+            A.IAAAdditiveGaussianNoise(p=0.2),
+            A.OneOf(
+                [A.CLAHE(p=1.0),
+                A.RandomBrightness(p=1.0),
+                A.RandomGamma(p=1.0)
+            ], p=0.5),
+            A.OneOf([
+                A.IAASharpen(p=0.8),
+                A.Blur(blur_limit=3, p=0.2),
+                A.MotionBlur(blur_limit=3, p=0.3)
+            ] , p=0.5),
+            A.OneOf([
+                A.RandomBrightnessContrast(p=1.0),
+                A.HueSaturationValue(p=1.0),
+            ],p=0.5),
+            A.OneOf([
+                A.RandomFog(p=1.0),
+                A.RandomRain(p=1.0),
+                A.RandomShadow(p=1.0),
+                A.RandomSnow(p=1.0),
+                A.RandomSunFlare(p=1.0)
+            ], p=0.05),
+        ])
+        transformed = transform(image=input_data)
+        input_data = transformed["image"]
+        
         input_data = input_data.astype(np.float32)
         if self.SHOW_DEBUG_IMG:
             debug_img = input_data.copy().astype(np.uint8)

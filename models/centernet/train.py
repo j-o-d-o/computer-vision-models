@@ -23,16 +23,16 @@ if __name__ == "__main__":
     params.REGRESSION_FIELDS["3d_info"].active = False
 
     Config.add_config('./config.ini')
-    collection_details = ("local_mongodb", "object_detection", "kitti")
+    collection_details = ("local_mongodb", "object_detection", "nuimages")
 
     # Create Data Generators
     train_data, val_data = load_ids(
         collection_details,
-        data_split=(82, 18),
+        data_split=(90, 10),
         shuffle_data=True
     )
 
-    processors = [ProcessImages(params), AugmentImages()]
+    processors = [ProcessImages(params)]
     train_gen = MongoDBGenerator(
         collection_details,
         train_data,
@@ -47,8 +47,6 @@ if __name__ == "__main__":
     )
 
     loss = CenternetLoss(params)
-    metrics = [loss.class_focal_loss, loss.r_offset_loss, loss.fullbox_loss, loss.l_shape_loss,
-        loss.radial_dist_loss, loss.orientation_loss, loss.obj_dims_loss]
     metrics = [loss.class_focal_loss, loss.r_offset_loss, loss.fullbox_loss]
     opt = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07) 
 
@@ -62,7 +60,7 @@ if __name__ == "__main__":
     model.summary()
 
     # Train Model
-    storage_path = "./trained_models/centernet_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
+    storage_path = "./trained_models/centernet_nuimages_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
     callbacks = [SaveToStorage(storage_path, model, False), tensorboard_callback]
     params.save_to_storage(storage_path)
