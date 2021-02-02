@@ -36,7 +36,8 @@ class ProcessImages(IPreProcessor):
         x, y, width, height = scaled_box2d
         center_x_float = x + (float(width) / 2.0)
         center_y_float = y + (float(height) / 2.0)
-        # TODO: Do something about truncated objects...
+        # TODO: When the fullbox is outside of the image, readjust the fullbox and the center accordingly
+        #       if fullbox is completely out of image, remove the track
         center_x = max(0, min(mask_width - 1, int(center_x_float))) # index needs to be int and within mask range
         center_y = max(0, min(mask_height - 1, int(center_y_float))) # index needs to be int and within mask range
         loc_off_x = center_x_float - center_x
