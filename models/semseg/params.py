@@ -12,6 +12,6 @@ class SemsegParams:
         # Input
         self.INPUT_WIDTH = 320 # width of input img in [px]
         self.INPUT_HEIGHT = 92 # height of input img in [px]
-        self.OFFSET_BOTTOM = 100 # offset in [px], applied before scaling, thus relative to org. img s
+        self.OFFSET_BOTTOM = -100 # offset in [px], applied before scaling, thus relative to org. img s
         self.MASK_WIDTH = 320 # width of the output mask
         self.MASK_HEIGHT = 92 # height of the output mask
