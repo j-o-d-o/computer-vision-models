@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.utils import Config, Logger, to_3channel
 from models.semseg.params import SemsegParams
@@ -41,6 +42,6 @@ class TestProcessors:
         for i, input_data in enumerate(batch_x):
             assert len(input_data) > 0
             mask_img = to_3channel(batch_y[i], SEMSEG_CLASS_MAPPING)
-            cv2.imshow("img", input_data.astype(np.uint8))
-            cv2.imshow("mask", mask_img)
-            cv2.waitKey(0)
+            plt.imshow(cv2.cvtColor(input_data, cv2.COLOR_BGR2RGB))
+            plt.imshow(cv2.cvtColor(mask_img, cv2.COLOR_BGR2RGB))
+            plt.show()
