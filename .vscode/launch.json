@@ -5,11 +5,19 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python: Current File",
-      "type": "python",
+      "name": "Docker: Test",
+      "type": "docker",
       "request": "launch",
-      "program": "${file}",
-      "console": "integratedTerminal"
+      "preLaunchTask": "docker-run: debug",
+      "python": {
+        "justMyCode": false,
+        "pathMappings": [
+          {
+            "localRoot": "${workspaceFolder}",
+            "remoteRoot": "."
+          }
+        ]
+      }
     }
   ]
 }

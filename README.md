@@ -2,36 +2,37 @@
 A set of tensorflow models for different computer vision tasks.
 
 ## Getting started
-#### External dependencies
-- [Conda](https://docs.conda.io/en/latest/miniconda.html) for package managment
+
+### Dependencies
+- [Docker](https://docs.docker.com/engine/install/ubuntu/) to create a image and containers
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker) To access GPUs from the containers
 - [MongoDB](https://docs.mongodb.com/manual/installation/) to store and read training data
-#### Python dependencies
+
+### Docker
+Check the `Dockerfile` to see what kind of dependencies are installed for the docker image. The `.vscode/task.json` shows all the flags for a run command:
 ```bash
-conda env create environmental.yml
-conda activate computer-vision-models
-```
-Note: Tensorflow is installed via conda and should take care of compatible cuda and cudnn versions on its own and will not interfere with your current setup. The cost of this, is a delay in getting the latest tensorflow versions.
-#### EdgeTpu support
-In order to compile with EdgeTpu some tools need to be installed (https://coral.ai/docs/edgetpu/compiler)
-```bash
-curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-echo "deb https://packages.cloud.google.com/apt coral-edgetpu-stable main" | sudo tee /etc/apt/sources.list.d/coral-edgetpu.list
-sudo apt-get update
-# For compiler for TFLite models -> EdgeTpu
-sudo apt-get install edgetpu-compiler
-# For inference on EdgeTpu with python
-sudo apt-get install python3-pycoral
-```
-In some cases there might be issues with accessing the EdgeTpu via USB without sudo (https://github.com/tensorflow/tensorflow/issues/32743)
-```bash
-# add user to plugdev to communicate with edge tpu without needing sudo
-sudo usermod -aG plugdev $USER
-# add this to /etc/udev/rules.d/99-edgetpu-accelerator.rules (might have to create the file first)
-SUBSYSTEM=="usb",ATTRS{idVendor}=="1a6e",GROUP="plugdev"
-SUBSYSTEM=="usb",ATTRS{idVendor}=="18d1",GROUP="plugdev"
+# allow access to screen from docker container
+xhost local:root
+
+docker run -it --rm 
+  --gpus all
+  --network="host"
+  --privileged -v /dev/bus/usb:/dev/bus/usb
+  -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix
+  --mount "type=bind,source=$(pwd),target=/home/computer-vision-models"
+  computer-vision-models bash
+
+# access gpus
+# allow access to localhost (for mongodb)
+# allow access to usb for Coral USB Accelerator
+# to display images on screen
+# bind local workspace with the one on docker to avoid rebuilding for every code change
 ```
 
-## Structure
+### EdgeTpu support
+Dont forget to plugin the Coral USB Accelerator :)
+
+## Folder structure
 Overview of the folder structure and it's contents. A README.md in each folder provides more detailed documentation.
 #### common
 Includes all the common code shared between all the different model implementations. E.g. data reading, storing/plotting results, logging, saving models or converting models to different platforms.

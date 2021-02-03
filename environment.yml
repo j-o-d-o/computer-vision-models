@@ -1,18 +1,17 @@
-name: computer-vision-models
+name: cvms
 dependencies:
   - python=3.7
-  - tensorflow-gpu==2.2.0
-  - pytest
-  - matplotlib
-  - redis
   - pip
   - pip:
-    - tqdm
+    - tensorflow-gpu==2.4.*
+    - tensorflow-model-optimization
+    - pytest
+    - matplotlib
     - numpy
     - pymongo
     - opencv-python==4.4.* # latest version has some issue with imshow... lets figure this out in another lifetime
     - nuscenes-devkit
-    - tensorflow-model-optimization
+    - tqdm
     - pygame
     - albumentations
     - nvidia-ml-py3
