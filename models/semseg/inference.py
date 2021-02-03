@@ -5,15 +5,12 @@ from pycoral.utils import edgetpu
 import numpy as np
 import os
 import cv2
+import matplotlib.pyplot as plt
 import argparse
 import time
 from pymongo import MongoClient
-from common.utils import to_3channel, resize_img
+from common.utils import to_3channel, resize_img, set_up_tf_gpu
 from data.semseg_spec import SEMSEG_CLASS_MAPPING
-
-gpus = tf.config.experimental.list_physical_devices('GPU')
-assert len(gpus) > 0, "Not enough GPU hardware devices available"
-tf.config.experimental.set_memory_growth(gpus[0], True)
 
 
 if __name__ == "__main__":
@@ -27,6 +24,8 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", type=str, default="/path/to/tf_model_x/model_quant_edgetpu.tflite", help="Path to a tensorflow model folder")
     parser.add_argument("--use_edge_tpu", action="store_true", help="EdgeTpu should be used for inference")
     args = parser.parse_args()
+
+    set_up_tf_gpu(tf)
 
     # For debugging force a value here
     # args.use_edge_tpu = True
@@ -89,6 +88,6 @@ if __name__ == "__main__":
 
         print(str(elapsed_time) + " s")
 
-
-        cv2.imshow("Semseg Image", semseg_img)
-        cv2.waitKey(0)
+        semseg_img = cv2.cvtColor(semseg_img, cv2.COLOR_BGR2RGB)
+        plt.imshow(semseg_img)
+        plt.show()
