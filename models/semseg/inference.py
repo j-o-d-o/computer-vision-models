@@ -18,9 +18,9 @@ if __name__ == "__main__":
     parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
     parser.add_argument("--db", type=str, default="semseg", help="MongoDB database")
     parser.add_argument("--collection", type=str, default="comma10k", help="MongoDB collection")
-    parser.add_argument("--img_width", type=int, default=320, help="Width of image, must be model input")
-    parser.add_argument("--img_height", type=int, default=92, help="Width of image, must be model input")
-    parser.add_argument("--offset_bottom", type=int, default=-120, help="Offset from the bottom in orignal image scale")
+    parser.add_argument("--img_width", type=int, default=640, help="Width of image, must be model input")
+    parser.add_argument("--img_height", type=int, default=256, help="Width of image, must be model input")
+    parser.add_argument("--offset_bottom", type=int, default=-242, help="Offset from the bottom in orignal image scale")
     parser.add_argument("--model_path", type=str, default="/path/to/tf_model_x/model_quant_edgetpu.tflite", help="Path to a tensorflow model folder")
     parser.add_argument("--use_edge_tpu", action="store_true", help="EdgeTpu should be used for inference")
     args = parser.parse_args()
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     # while (cap.isOpened()):
     #     ret, img = cap.read()
 
-    documents = collection.find({}).limit(3)
+    documents = collection.find({}).limit(10)
     for doc in documents:
         decoded_img = np.frombuffer(doc["img"], np.uint8)
         img = cv2.imdecode(decoded_img, cv2.IMREAD_COLOR)
@@ -69,7 +69,7 @@ if __name__ == "__main__":
         img, roi = resize_img(img, args.img_width, args.img_height, args.offset_bottom)
 
         if is_tf_lite:
-            img_input = img.astype(np.float32)
+            img_input = img
             interpreter.set_tensor(input_details[0]['index'], [img_input])
             #input_shape = input_details[0]['shape']
             start_time = time.time()
@@ -88,6 +88,5 @@ if __name__ == "__main__":
 
         print(str(elapsed_time) + " s")
 
-        semseg_img = cv2.cvtColor(semseg_img, cv2.COLOR_BGR2RGB)
-        plt.imshow(semseg_img)
-        plt.show()
+        # plt.imshow(cv2.cvtColor(semseg_img, cv2.COLOR_BGR2RGB))
+        # plt.show()

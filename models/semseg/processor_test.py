@@ -33,7 +33,7 @@ class TestProcessors:
         train_gen = MongoDBGenerator(
             self.collection_details,
             self.train_data,
-            batch_size=3,
+            batch_size=10,
             processors=[ProcessImages(self.params)]
         )
 
@@ -41,7 +41,9 @@ class TestProcessors:
 
         for i, input_data in enumerate(batch_x):
             assert len(input_data) > 0
-            mask_img = to_3channel(batch_y[i], SEMSEG_CLASS_MAPPING)
-            plt.imshow(cv2.cvtColor(input_data, cv2.COLOR_BGR2RGB))
-            plt.imshow(cv2.cvtColor(mask_img, cv2.COLOR_BGR2RGB))
+            mask_img = to_3channel(batch_y[i], SEMSEG_CLASS_MAPPING, threshold=0.999)
+
+            f, (ax1, ax2) = plt.subplots(1, 2)
+            ax1.imshow(cv2.cvtColor(input_data.astype(np.uint8), cv2.COLOR_BGR2RGB))
+            ax2.imshow(cv2.cvtColor(mask_img, cv2.COLOR_BGR2RGB))
             plt.show()

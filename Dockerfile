@@ -4,6 +4,9 @@ FROM tensorflow/tensorflow:latest-gpu
 # Install some usefull stuff
 RUN apt-get update
 RUN apt-get install -y git nano pkg-config wget usbutils
+RUN add-apt-repository universe
+RUN apt update
+RUN apt install -y graphviz
 
 # Install Edge-TPU support
 RUN echo "deb https://packages.cloud.google.com/apt coral-edgetpu-stable main" | tee /etc/apt/sources.list.d/coral-edgetpu.list
@@ -14,7 +17,7 @@ RUN apt-get install -y libedgetpu1-std edgetpu-compiler python3-pycoral
 # install tinker, provide some default values for promt
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Berlin
-RUN apt-get -y install python3-tk
+RUN apt-get install -y python3-tk
 
 # Install Miniconda
 ENV PATH="/root/miniconda3/bin:${PATH}"

@@ -1,4 +1,7 @@
 import tensorflow as tf
+gpus = tf.config.experimental.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(gpus[0], True)
+
 import tensorflow_model_optimization as tfmot
 from tensorflow.keras import optimizers, models, metrics
 from datetime import datetime
@@ -10,8 +13,6 @@ from models.semseg import create_model, SemsegParams, ProcessImages, SemsegLoss
 
 
 if __name__ == "__main__":
-    set_up_tf_gpu(tf)
-
     Logger.init()
     Logger.remove_file_logger()
 
@@ -23,9 +24,8 @@ if __name__ == "__main__":
     # Create Data Generators
     train_data, val_data = load_ids(
         collection_details,
-        data_split=(78, 22),
+        data_split=(88, 12),
         shuffle_data=True,
-        limit=500
     )
 
     processors = [ProcessImages(params)]

@@ -3,10 +3,11 @@ dependencies:
   - python=3.7
   - pip
   - pip:
-    - tensorflow-gpu==2.4.*
+    - tensorflow-gpu
     - tensorflow-model-optimization
     - pytest
     - matplotlib
+    - pydot
     - numpy
     - pymongo
     - opencv-python==4.4.* # latest version has some issue with imshow... lets figure this out in another lifetime

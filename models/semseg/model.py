@@ -2,8 +2,32 @@ import tensorflow as tf
 from tensorflow.keras.layers import Input, Conv2D, Add, BatchNormalization, ReLU, MaxPooling2D, Conv2DTranspose, Concatenate, ZeroPadding2D, Dropout, DepthwiseConv2D
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
+from tensorflow.keras.initializers import Constant
 from data.semseg_spec import SEMSEG_CLASS_MAPPING
 from common.layers import bottle_neck_block, upsample_block
+from typing import List
+from tensorflow.keras.utils import plot_model
+from models.semseg import SemsegParams, create_dataset
+from common.utils import tflite_convert
+
+
+def encoder(filters: int, input_tensor: tf.Tensor, base_model_weight: tf.keras.Model = None):
+    fms = []
+    x = input_tensor
+    x = bottle_neck_block(f"prior_downsample", x, filters, downsample = True)
+    fms.append(x)
+
+    for i in range(4):
+        x = bottle_neck_block(f"down_{i*2  }", x, filters)
+        x = bottle_neck_block(f"down_{i*2+1}", x, filters, downsample = True)
+        filters = int(filters * 2)
+        fms.append(x)
+
+    for i in range(len(fms) - 2, -1, -1):
+        filters = int(filters // 2)
+        x = upsample_block(f"up_{i}", x, fms[i], filters)
+
+    return x
 
 
 def create_model(input_height: int, input_width: int) -> tf.keras.Model:
@@ -13,38 +37,20 @@ def create_model(input_height: int, input_width: int) -> tf.keras.Model:
     :param input_width: Width of the input image
     :return: Semseg Keras Model
     """
-    input_layer = Input(shape=(input_height, input_width, 3))
+    input_tensor = Input(shape=(input_height, input_width, 3))
 
-    fs = 12 # filter scaling
-    fms = [] # feature maps
+    x = encoder(8, input_tensor)
+    x = bottle_neck_block("semseg_head", x, 8)
+    out = Conv2D(len(SEMSEG_CLASS_MAPPING), kernel_size=1, activation="sigmoid", kernel_regularizer=l2(l=0.0001))(x)
 
-    # Feature maps downsampling
-    x = bottle_neck_block(input_layer, 1 * fs)
-    x = bottle_neck_block(x, 1 * fs)
-    fms.append(x)
-    x = bottle_neck_block(x, 1 * fs, downsample=True)
-    x = bottle_neck_block(x, 2 * fs)
-    fms.append(x)
-
-    # Dialated layers to avoid further downsampling while still having large respetive field
-    x = bottle_neck_block(x, 2 * fs, downsample=True)
-    d1 = bottle_neck_block(x, 2 * fs, dilation_rate=3)
-    d2 = bottle_neck_block(x, 2 * fs, dilation_rate=6)
-    d3 = bottle_neck_block(x, 2 * fs, dilation_rate=9)
-    d4 = bottle_neck_block(x, 2 * fs, dilation_rate=12)
-    x = Concatenate()([d1, d2, d3, d4])
-    x = Conv2D(2 * fs, kernel_size=1, padding="same")(x)
-    fms.append(x)
-
-    # Upsampling the blocks to original image size / mask size
-    x = upsample_block(fms[2], fms[1], 2 * fs)
-    x = upsample_block(x, fms[0], 2 * fs)
-
-    out = Conv2D(len(SEMSEG_CLASS_MAPPING), kernel_size=1, kernel_regularizer=l2(l=0.0001))(x)
-
-    model = Model(inputs=input_layer, outputs=[out])
+    model = Model(inputs=[input_tensor], outputs=[out])
     return model
 
-# params = SemsegParams()
-# model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
-# model.summary()
+
+if __name__ == "__main__":
+    params = SemsegParams()
+    model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
+    model.input.set_shape((1,) + model.input.shape[1:])
+    model.summary()
+    plot_model(model, to_file="./tmp/semseg_model.png")
+    tflite_convert(model, "./tmp", True, True, create_dataset(model.input.shape))
