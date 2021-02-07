@@ -5,7 +5,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Docker: Test",
+      "name": "Docker: Run",
       "type": "docker",
       "request": "launch",
       "preLaunchTask": "docker-run: debug",
@@ -17,7 +17,14 @@
             "remoteRoot": "."
           }
         ]
-      }
+      },
+    },
+    {
+      "name": "Python: Current File (localy)",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal"
     }
   ]
 }
