@@ -67,3 +67,12 @@ Afterwards you will have to move everything into a folder named "samples", same 
 # Run script to convert NuScenes data to od_spec and upload to MongoDB
 nuscenes_od.py --path /path/to/nuscenes-v1.0-all
 ```
+
+# DrivingStereo - Depthmap
+Download: https://drivingstereo-dataset.github.io/
+- Training data - Left Images
+- Training data - Depth Maps
+Folder structure should have all scene folders (e.g. 2018-10-19-09-30-39) of depth maps in one folder and the same scene folders for the left images in another folder.
+```bash
+driving_stereo_depth.py --depth_maps /path/to/depth_maps --images /path/to/images
+```

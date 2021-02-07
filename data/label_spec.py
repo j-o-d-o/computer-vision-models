@@ -13,6 +13,23 @@ OD_CLASS_MAPPING = OrderedDict([
 ])
 OD_CLASS_IDX = {k: pos for pos, k in enumerate(OD_CLASS_MAPPING)}
 
+# These are the same as from the comma10k label spec (https://github.com/commaai/comma10k)
+# Hex values are in RGB, Tuples are in BGR!
+#  1 - #402020 - road (all parts, anywhere nobody would look at you funny for driving)
+#  2 - #ff0000 - lane markings (don't include non lane markings like turn arrows and crosswalks)
+#  3 - #808060 - undrivable
+#  4 - #00ff66 - movable (vehicles and people/animals)
+#  5 - #cc00ff - my car (and anything inside it, including wires, mounts, etc. No reflections)
+SEMSEG_CLASS_MAPPING = OrderedDict([
+  ("road", (32, 32, 64)), # dark red
+  ("lane_markings", (0, 0, 255)), # red
+  ("undriveable", (96, 128, 128)), # green-brownish
+  ("movable", (102, 255, 0)), # green
+  ("ego_car", (255, 0, 204)), # purple
+])
+SEMSEG_CLASS_IDX = {k: pos for pos, k in enumerate(SEMSEG_CLASS_MAPPING)}
+
+
 @dataclass
 class Object:
   obj_class: str # describe class as string from OD_CLASS_MAPPING
@@ -47,13 +64,16 @@ class Entry:
   content_type: str # e.g. "image/png", "image/jpg", etc.
   org_source: str # describe original source of the data e.g. KITTI
   org_id: str # describe original identifier
+  mask: bytes = None
+  depth: bytes = None
   objects: List[Object] = None
   ignore: List[List[float]] = None # bounding boxes that should be ignored [x, y, width, height] with (x, y) being top left
   has_3D_info: bool = False # flag weather 3D info is available on objects
   has_track_info: bool = False # flag weather the entry has tracking info
   scene_token: str = None # token to which scene this entry belongs to (only applicable for tracking data)
   timestamp: str = None # timestamp for this frame (only applicable for tracking data)
-  
+  next_timestamp: str = None # timestamp of next frame, if None there is no next frame
+
   # Sensor Info
   sensor_valid: bool = False
   pitch: float = 0.0
