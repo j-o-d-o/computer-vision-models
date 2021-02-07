@@ -5,7 +5,6 @@ tf.config.experimental.set_memory_growth(gpus[0], True)
 import tensorflow_model_optimization as tfmot
 from tensorflow.keras import optimizers, models, metrics
 from datetime import datetime
-from common.processors import AugmentImages
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.callbacks import SaveToStorage
 from common.utils import Logger, Config, set_up_tf_gpu

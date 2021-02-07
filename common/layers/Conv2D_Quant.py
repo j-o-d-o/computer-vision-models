@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 class Conv2D_Quant(tf.keras.layers.Conv2D):
+    # Doesnt really work well, and by not well I mean not at all
     def call(self, inputs):
         # Loss kernel
         kernel = self.kernel
