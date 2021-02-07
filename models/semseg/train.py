@@ -50,7 +50,7 @@ if __name__ == "__main__":
             custom_objects = {"SemsegLoss": loss}
             model: models.Model = models.load_model(params.LOAD_PATH, custom_objects=custom_objects, compile=False)
     else:
-        model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
+        model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH, params.LOAD_BASE_MODEL_PATH)
 
     model.compile(optimizer=opt, loss=loss, metrics=[])
     model.summary()
@@ -70,5 +70,6 @@ if __name__ == "__main__":
         verbose=1,
         callbacks=callbacks,
         initial_epoch=0,
-        workers=1,
+        workers=2,
+        use_multiprocessing=True
     )

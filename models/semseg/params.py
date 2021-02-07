@@ -8,6 +8,7 @@ class SemsegParams:
         self.BATCH_SIZE = 6
         self.PLANED_EPOCHS = 90
         self.LOAD_PATH = None
+        self.LOAD_BASE_MODEL_PATH = None # weights just used for the encoder part
 
         # Input
         self.INPUT_WIDTH = 640 # width of input img in [px]
