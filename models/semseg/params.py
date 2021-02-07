@@ -5,7 +5,7 @@ Hold all the specific parameters in this python class
 class SemsegParams:
     def __init__(self):
         # Training
-        self.BATCH_SIZE = 8
+        self.BATCH_SIZE = 6
         self.PLANED_EPOCHS = 90
         self.LOAD_PATH = None
 

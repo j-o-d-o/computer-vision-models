@@ -24,7 +24,7 @@ if __name__ == "__main__":
     # Create Data Generators
     train_data, val_data = load_ids(
         collection_details,
-        data_split=(88, 12),
+        data_split=(84, 16),
         shuffle_data=True,
     )
 
@@ -44,12 +44,12 @@ if __name__ == "__main__":
 
     # Create Model
     loss = SemsegLoss()
-    opt = optimizers.Adam(lr=0.0009, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
 
     if params.LOAD_PATH is not None:
         with tfmot.quantization.keras.quantize_scope():
             custom_objects = {"SemsegLoss": loss}
-            model: models.Model = models.load_model(params.LOAD_MODEL_PATH, custom_objects=custom_objects, compile=False)
+            model: models.Model = models.load_model(params.LOAD_PATH, custom_objects=custom_objects, compile=False)
     else:
         model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     # model.run_eagerly = True
 
     # Train model
-    storage_path = "./trained_models/semseg_comma10k_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
+    storage_path = "./trained_models/semseg_comma10k_augment_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
     callbacks = [SaveToStorage(storage_path, model, True), tensorboard_callback]
 
@@ -71,5 +71,5 @@ if __name__ == "__main__":
         verbose=1,
         callbacks=callbacks,
         initial_epoch=0,
-        workers=2,
+        workers=1,
     )

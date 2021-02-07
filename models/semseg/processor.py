@@ -31,7 +31,21 @@ class ProcessImages(IPreProcessor):
         self.params: SemsegParams = params
 
     def augment(self, img, mask):
+        afine_transform = A.Compose([
+            A.HorizontalFlip(p=0.4),
+            # A.OneOf([
+            #     # A.GridDistortion(interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
+            #     # A.ElasticTransform(interpolation=cv2.INTER_NEAREST, alpha_affine=10, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
+            #     A.ShiftScaleRotate(interpolation=cv2.INTER_NEAREST, rotate_limit=10, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
+            #     # A.OpticalDistortion(interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
+            # ], p=0.5),
+        ], additional_targets={'mask': 'image'})
+        afine_transformed = afine_transform(image=img, mask=mask)
+        img = afine_transformed["image"]
+        mask = afine_transformed["mask"]
+
         transform = A.Compose([
+            A.IAAAdditiveGaussianNoise(p=0.05),
             A.OneOf([
                 A.IAASharpen(p=1.0),
                 A.Blur(blur_limit=3, p=1.0),
@@ -64,9 +78,7 @@ class ProcessImages(IPreProcessor):
         # Add ground_truth mask
         mask_encoded = np.frombuffer(raw_data["mask"], np.uint8)
         mask_img = cv2.imdecode(mask_encoded, cv2.IMREAD_COLOR)
-        mask_img, roi_mask = resize_img(mask_img, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
-        input_data, mask_img = self.augment(input_data, mask_img)
-        mask_img, _ = resize_img(mask_img, self.params.MASK_WIDTH, self.params.MASK_HEIGHT, offset_bottom=0, interpolation=cv2.INTER_NEAREST)
+        mask_img, _ = resize_img(mask_img, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
 
         # one hot encode based on class mapping from semseg spec
         mask_img = to_hex(mask_img) # convert 3 channel representation to single hex channel
@@ -74,6 +86,10 @@ class ProcessImages(IPreProcessor):
         mask_img = vfunc(mask_img)
         nb_classes = len(SEMSEG_CLASS_MAPPING)
         ground_truth = to_categorical(mask_img, nb_classes)
+
+        # augment and resize mask to real size
+        input_data, ground_truth = self.augment(input_data, ground_truth)
+        ground_truth, _ = resize_img(ground_truth, self.params.MASK_WIDTH, self.params.MASK_HEIGHT, offset_bottom=0, interpolation=cv2.INTER_NEAREST)
 
         input_data = input_data.astype(np.float32)
         return raw_data, input_data, ground_truth, piped_params

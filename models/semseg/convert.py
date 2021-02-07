@@ -16,7 +16,7 @@ def create_dataset(input_shape):
     # Create sample dataset for post training quantization
     client = MongoClient("mongodb://localhost:27017")
     collection = client["semseg"]["comma10k"]
-    documents = collection.find({}).limit(10)
+    documents = collection.find({}).limit(600)
 
     documents_list = list(documents)
     assert(len(documents_list) > 0)
@@ -38,7 +38,8 @@ if __name__ == "__main__":
 
     # args.compile_edge_tpu = True
     # args.quantize = True
-    # args.model_path = "/home/computer-vision-models/trained_models/semseg_comma10k_2021-02-05-111450/tf_model_3/keras.h5"
+    # args.compile_edge_tpu = True
+    # args.model_path = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-06-062841/tf_model_40/keras.h5"
 
     model = tf.keras.models.load_model(args.model_path, compile=False)
 
