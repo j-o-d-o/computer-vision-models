@@ -3,7 +3,7 @@ from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, ReLU
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.initializers import Constant
-from data.semseg_spec import SEMSEG_CLASS_MAPPING
+from data.label_spec import SEMSEG_CLASS_MAPPING
 from common.layers import bottle_neck_block, upsample_block, encoder
 from typing import List
 from tensorflow.keras.utils import plot_model

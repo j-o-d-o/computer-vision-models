@@ -5,7 +5,7 @@ from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.utils import Config, Logger, to_3channel
 from models.semseg.params import SemsegParams
 from models.semseg.processor import ProcessImages
-from data.semseg_spec import SEMSEG_CLASS_MAPPING
+from data.label_spec import SEMSEG_CLASS_MAPPING
 
 
 class TestProcessors:

@@ -11,7 +11,7 @@ import argparse
 import time
 from pymongo import MongoClient
 from common.utils import to_3channel, resize_img, set_up_tf_gpu
-from data.semseg_spec import SEMSEG_CLASS_MAPPING
+from data.label_spec import SEMSEG_CLASS_MAPPING
 
 
 if __name__ == "__main__":

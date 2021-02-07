@@ -2,7 +2,7 @@ import cv2
 from pymongo import MongoClient
 import argparse
 from tqdm import tqdm
-from semseg_spec import Entry
+from data.label_spec import Entry
 
 
 if __name__ == "__main__":

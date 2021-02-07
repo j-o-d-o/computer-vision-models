@@ -1,7 +1,7 @@
 # Semantic Segmentation
 
 ## Data
-Upload the comma10k data to a MongoDB. See data/comma10k.py for the upload script and semseg_spec.py for the label spec.
+Upload the comma10k data to a MongoDB. See data/comma10k.py for the upload script and label_spec.py for the label spec.
 
 ## Training
 ```bash

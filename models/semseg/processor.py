@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from tensorflow.keras.utils import to_categorical
 from common.processors import IPreProcessor
 from common.utils import resize_img
-from data.semseg_spec import SEMSEG_CLASS_MAPPING
+from data.label_spec import SEMSEG_CLASS_MAPPING
 from models.semseg.params import SemsegParams
 import albumentations as A
 

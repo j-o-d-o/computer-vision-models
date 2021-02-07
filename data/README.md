@@ -2,12 +2,10 @@
 Scripts to upload different data sources to MongoDB with a unified data spec. All examples below expect a local running MongoDB.
 In case you want to upload to a different MongoDB or adjust the database and collection, use the parameters. Check out the `--help` for each script.
 
-## semseg_spec.py & od_spec.py
-Data specification for semseg and object detection. All data from the different sources is transformed and converted to
-fit these specs. These enables to train the same model from different data sources without having to write specific processors for
-each data source.</br>
-While the semseg spec is basically the comma10k label spec, the od spec is close to the kitti label spec with minor additions (3D bounding box)
-and minor changes (axis of coordinate system to autosar, different ignore area approach)
+## label_spec.py
+Data specification for semseg, depth maps, sensor specifics and object detection. All data from the different sources is transformed and converted to
+fit this spec. These enables to train the same model from different data sources without having to write specific pre-processors for
+each data source.
 
 ## Comma10k - Semseg
 Semantic segmentation data from comma.ai (https://github.com/commaai/comma10k). Clone the repository to your machine and run
