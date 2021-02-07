@@ -41,7 +41,9 @@ class TestProcessors:
 
         for i, input_data in enumerate(batch_x):
             assert len(input_data) > 0
-            mask_img = to_3channel(batch_y[i], SEMSEG_CLASS_MAPPING, threshold=0.999)
+            cls_items = list(SEMSEG_CLASS_MAPPING.items())
+            nb_classes = len(cls_items)
+            mask_img = to_3channel(batch_y[i], cls_items, threshold=0.999)
 
             f, (ax1, ax2) = plt.subplots(1, 2)
             ax1.imshow(cv2.cvtColor(input_data.astype(np.uint8), cv2.COLOR_BGR2RGB))
