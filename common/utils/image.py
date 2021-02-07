@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 from dataclasses import dataclass
-from data.od_spec import OD_CLASS_MAPPING
 from numba import jit
 
 
