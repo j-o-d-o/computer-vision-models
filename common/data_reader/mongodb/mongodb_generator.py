@@ -12,8 +12,8 @@ from common.data_reader.i_cache import ICache
 
 class MongoDBGenerator(BaseDataGenerator):
     def __init__(self,
-                 col_details: Tuple[str, str, str],
-                 doc_ids: List[any] = list(),
+                 col_details: List[Tuple[str, str, str]],
+                 doc_ids: List[List[any]],
                  batch_size: int = 32,
                  processors: List[any] = list(),
                  cache: ICache = None,
@@ -37,8 +37,6 @@ class MongoDBGenerator(BaseDataGenerator):
                                datasamples left for the final batch, these 63 data points will be ignored. In case the
                                batch size of your model is fixed, set this to True.
         """
-        assert (len(col_details) == 3)
-
         super().__init__(batch_size, processors)
         self.doc_ids = doc_ids
         self.cache = cache
@@ -47,16 +45,17 @@ class MongoDBGenerator(BaseDataGenerator):
         self.docs_per_batch = self.batch_size + (self.data_group_size - 1)
         self.col_details = col_details
         self.fix_batch_size = fix_batch_size
-        self.collection = None
+        self.collections = None
         self.mongo_con = MongoDBConnect()
         self.mongo_con.add_connections_from_config(Config.get_config_parser())
         # in case a step_size is chosen > 1, make sure that len(doc_ids) is a multiple of that
         # otherwise reshape will not be working and throw errors
         if self.data_group_size > 1:
-            overflow = len(self.doc_ids) % self.docs_per_batch
-            self.doc_ids = self.doc_ids[:len(self.doc_ids) - overflow]
+            for i in range(len(self.doc_ids)):
+                overflow = len(self.doc_ids[i]) % self.docs_per_batch
+                self.doc_ids[i] = self.doc_ids[i][:len(self.doc_ids[i]) - overflow]
 
-    def _fetch_data(self, query_docs: list) -> List[any]:
+    def _fetch_data(self, collection, query_docs: list) -> List[any]:
         """
         Get a set of _ids from the database (in order)
         :param query_docs: A list of _ids
@@ -69,36 +68,51 @@ class MongoDBGenerator(BaseDataGenerator):
             {"$addFields": {"__order": {"$indexOfArray": [query_docs, "$_id"]}}},
             {"$sort": {"__order": 1}}
         ]
-        docs = self.collection.aggregate(query)
+        docs = collection.aggregate(query)
         return docs
 
     def __len__(self) -> int:
         """
         :return: Number of batches per epoch
         """
+        num_ids = sum(len(ids) for ids in self.doc_ids)
         if self.fix_batch_size:
-            num_batches = int(math.floor(len(self.doc_ids) / self.docs_per_batch))
+            num_batches = int(math.floor(num_ids / self.docs_per_batch))
         else:
-            num_batches = int(math.ceil(len(self.doc_ids) / self.docs_per_batch))
+            num_batches = int(math.ceil(num_ids / self.docs_per_batch))
         return num_batches
 
     def __getitem__(self, idx):
         """
         Get batch data
-        :param idx: current idx in the doc_ids list
+        :param idx: current idx in the batch
         :return: arrays for traning_data (x) and labels (y)
         """
 
-        # Connection should always be established on first __getitem__ class to support multiprocessing
+        # Connections should always be established on first __getitem__ class to support multiprocessing
         # every fork needs to have its own database connection
-        if self.collection is None:
-            self.collection = self.mongo_con.get_collection(*self.col_details)
+        if self.collections is None:
+            self.collections = []
+            for detail in self.col_details:
+                self.collections.append(self.mongo_con.get_collection(*detail))
 
-        batch_ids = self.doc_ids[idx * self.docs_per_batch:(idx + 1) * self.docs_per_batch]
+        # based on the batch_idx and each doc_ids entry length, check where to take the ids from
+        data_start_idx = idx * self.docs_per_batch
+        collection = None
+        batch_ids = []
+        for i in range(len(self.doc_ids)):
+            len_docs = len(self.doc_ids[i])
+            if len_docs <= data_start_idx:
+                data_start_idx -= len_docs
+            else:
+                collection = self.collections[i]
+                batch_ids = self.doc_ids[i][data_start_idx : data_start_idx + self.docs_per_batch]
+                break
+
         if self.cache is not None and self.cache.exist(batch_ids):
             docs = self.cache.get(batch_ids)
         else:
-            docs = self._fetch_data(batch_ids)
+            docs = self._fetch_data(collection, batch_ids)
             if self.cache is not None:
                 # save fetched data to cache
                 for doc in docs:
@@ -107,7 +121,7 @@ class MongoDBGenerator(BaseDataGenerator):
                         Logger.logger.warning("Redis cache is full")
                         break
                 # Create new command cursor since the original one is finished after looping once
-                docs = self._fetch_data(batch_ids)
+                docs = self._fetch_data(collection, batch_ids)
 
         if self.data_group_size > 1:
             # reshape to fit step_size and copy data
@@ -156,11 +170,13 @@ class MongoDBGenerator(BaseDataGenerator):
         """
         Called after each epoch
         """
+        shuffle(self.doc_ids)
         if self.shuffle_data:
-            if self.data_group_size == 1:
-                shuffle(self.doc_ids)
-            else:
-                # we made sure that len(self.doc_ids) is a multiple of self.docs_per_batch in the constructor
-                x = np.reshape(self.doc_ids, (-1, self.docs_per_batch))
-                np.random.shuffle(x)
-                self.doc_ids = x.flatten().tolist()
+            for i in range(len(self.doc_ids)):
+                if self.data_group_size == 1:
+                    shuffle(self.doc_ids[i])
+                else:
+                    # we made sure that len(self.doc_ids) is a multiple of self.docs_per_batch in the constructor
+                    x = np.reshape(self.doc_ids[i], (-1, self.docs_per_batch))
+                    np.random.shuffle(x)
+                    self.doc_ids[i] = x.flatten().tolist()
