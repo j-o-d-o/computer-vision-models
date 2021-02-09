@@ -80,6 +80,8 @@ class Entry:
   yaw: float = 0.0
   roll: float = 0.0
   translation: List[float] = None # x, y, z in autosar coordinate system, bumper origin
+  focal_length = (float, float) # focal length (x, y) in [px]
+  principal_point_offset = (float, float) # principal point offset (x, y) in [px]
 
   def get_dict(self):
     data_as_dict = self.__dict__
