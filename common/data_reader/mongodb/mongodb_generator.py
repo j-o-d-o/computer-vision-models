@@ -19,6 +19,7 @@ class MongoDBGenerator(BaseDataGenerator):
                  cache: ICache = None,
                  shuffle_data: bool = True,
                  data_group_size: int = 1,
+                 continues_data_selection: bool = True,
                  fix_batch_size: bool = False):
         """
         :param col_details: MongoDB collection details with a tuple of 3 string entries
@@ -42,6 +43,7 @@ class MongoDBGenerator(BaseDataGenerator):
         self.cache = cache
         self.shuffle_data = shuffle_data
         self.data_group_size = max(data_group_size, 1)
+        self.continues_data_selection = continues_data_selection
         self.docs_per_batch = self.batch_size + (self.data_group_size - 1)
         self.col_details = col_details
         self.fix_batch_size = fix_batch_size
@@ -63,12 +65,16 @@ class MongoDBGenerator(BaseDataGenerator):
         """
         # to ensure the order of query_docs, use this method. For more details look at this stackoverflow question:
         # https://stackoverflow.com/questions/22797768/does-mongodbs-in-clause-guarantee-order/22800784#22800784
-        query = [
-            {"$match": {"_id": {"$in": query_docs}}},
-            {"$addFields": {"__order": {"$indexOfArray": [query_docs, "$_id"]}}},
-            {"$sort": {"__order": 1}}
-        ]
-        docs = collection.aggregate(query)
+        # query = [
+        #     {"$match": {"_id": {"$in": query_docs}}},
+        #     {"$unwind": {"path": '$assigned', "preserveNullAndEmptyArrays": True }},
+        #     {"$addFields": {"__order": {"$indexOfArray": [query_docs, "$_id"]}}},
+        #     {"$sort": {"__order": 1}}
+        # ]
+        # docs = collection.aggregate(query)
+        docs = []
+        for doc_id in query_docs:
+            docs.append(collection.find_one({"_id": doc_id}))
         return docs
 
     def __len__(self) -> int:
@@ -125,15 +131,20 @@ class MongoDBGenerator(BaseDataGenerator):
 
         if self.data_group_size > 1:
             # reshape to fit step_size and copy data
-            # since docs is a cursor, save in a temporary list
+            # since docs is a cursor, save in a temporary list  
             tmp_data = list(docs)
             docs = []
             start_idx = 0
             end_idx = self.data_group_size
             while end_idx <= len(tmp_data):
-                docs.append(tmp_data[start_idx:end_idx])
-                start_idx += 1
-                end_idx += 1
+                if self.continues_data_selection:
+                    docs.append(tmp_data[start_idx:end_idx])
+                    start_idx += 1
+                    end_idx += 1
+                else:
+                    docs.append(tmp_data[start_idx:end_idx])
+                    start_idx += self.data_group_size
+                    end_idx += self.data_group_size
 
         batch_x, batch_y = self._process_batch(docs)
         input_data = []
@@ -147,6 +158,16 @@ class MongoDBGenerator(BaseDataGenerator):
                 for batch in batch_x:
                     for key in batch:
                         input_data[key].append(np.asarray(batch[key]))
+            if isinstance(batch_x[0], list):
+                # multiple inputs, split them up by index
+                len_inputs = len(batch_x[0])
+                for i in range(len_inputs):
+                    input_data.append([])
+                for batch in batch_x:
+                    for i in range(len_inputs):
+                        input_data[i].append(np.asarray(batch[i]))
+                for i in range(len_inputs):
+                    input_data[i] = np.asarray(input_data[i])
             else:
                 input_data = np.asarray(batch_x)
 
@@ -161,10 +182,13 @@ class MongoDBGenerator(BaseDataGenerator):
                 for batch in batch_y:
                     for key in batch:
                         ground_truth[key].append(np.asarray(batch[key]))
-            else:
+            elif batch_y[0] is not None:
                 ground_truth = np.asarray(batch_y)
 
-        return input_data, ground_truth
+        if len(ground_truth) == 0:
+            ground_truth = None
+
+        return (input_data, ground_truth)
 
     def on_epoch_end(self):
         """

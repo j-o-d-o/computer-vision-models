@@ -5,6 +5,7 @@ from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.utils import Config, Logger
 from models.dmds.params import DmdsParams
 from models.dmds.processor import ProcessImages
+from models.dmds.train import adapt_doc_ids
 
 
 class TestProcessors:
@@ -21,8 +22,8 @@ class TestProcessors:
         Config.add_config('./config.ini')
         collection_details = ("local_mongodb", "depth", "driving_stereo")
         scenes = [
+            "2018-10-26-15-24-18",
             "2018-10-19-09-30-39",
-            "2018-10-22-10-44-02"
         ]
         self.train_data = []
         self.val_data = []
@@ -38,6 +39,8 @@ class TestProcessors:
                 mongodb_filter={"scene_token": scene_token},
                 sort_by={"timestamp": 1}
             )
+            train_data = adapt_doc_ids(train_data)
+            val_data = adapt_doc_ids(val_data)
             self.train_data.append(train_data)
             self.val_data.append(val_data)
             self.collection_details.append(collection_details)
@@ -46,17 +49,18 @@ class TestProcessors:
         train_gen = MongoDBGenerator(
             self.collection_details,
             self.train_data,
-            batch_size=20,
+            batch_size=7,
             processors=[ProcessImages(self.params)],
-            data_group_size=2
+            data_group_size=2,
+            continues_data_selection=False,
+            shuffle_data=False
         )
 
-        for batch_x, batch_y in train_gen:
-            for i, input_data in enumerate(batch_x):
-                assert len(input_data) > 0
-
-                img_t0 = input_data[:, :, :3]
-                img_t1 = input_data[:, :, 3:]
+        for batch_x, _ in train_gen:
+            for i in range(len(batch_x[0])):
+                assert len(batch_x[0]) > 0
+                img_t0 = batch_x[0][i]
+                img_t1 = batch_x[1][i]
 
                 f, (ax1, ax2) = plt.subplots(1, 2)
                 ax1.imshow(cv2.cvtColor(img_t0.astype(np.uint8), cv2.COLOR_BGR2RGB))

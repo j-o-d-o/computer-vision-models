@@ -54,12 +54,16 @@ class ProcessImages(IPreProcessor):
         # Add input_data
         img_t0 = cv2.imdecode(np.frombuffer(raw_data[0]["img"], np.uint8), cv2.IMREAD_COLOR)
         img_t0, _ = resize_img(img_t0, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM)
+        img_t0 = img_t0.astype(np.float32)
 
         img_t1 = cv2.imdecode(np.frombuffer(raw_data[1]["img"], np.uint8), cv2.IMREAD_COLOR)
         img_t1, _ = resize_img(img_t1, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM)
+        img_t1 = img_t1.astype(np.float32)
 
-        input_data = np.concatenate((img_t0, img_t1), axis=2)
+        # input_data = {
+        #     "t0": img_t0,
+        #     "t1": img_t0
+        # }
+        input_data = [img_t0, img_t1]
 
-        input_data = input_data.astype(np.float32)
-        ground_truth = input_data.astype(np.float32)
-        return raw_data, input_data, ground_truth, piped_params
+        return raw_data, input_data, None, piped_params

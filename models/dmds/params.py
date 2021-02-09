@@ -1,7 +1,7 @@
 class DmdsParams:
     def __init__(self):
         # Training
-        self.BATCH_SIZE = 2
+        self.BATCH_SIZE = 3
         self.PLANED_EPOCHS = 90
         self.LOAD_PATH = None
         self.LOAD_DEPTH_MODEL = None # weights just used for the encoder for depth model part
