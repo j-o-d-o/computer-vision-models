@@ -3,7 +3,6 @@ import tensorflow as tf
 from tensorflow.keras import initializers, regularizers, Model
 from tensorflow.keras.layers import Conv2DTranspose, BatchNormalization, ReLU, Conv2D, DepthwiseConv2D, Add, Input, Concatenate
 import numpy as np
-from kerassurgeon.operations import insert_layer
 from models.centertracker.params import CentertrackerParams
 import models.centernet as centernet
 from tensorflow.keras.utils import plot_model

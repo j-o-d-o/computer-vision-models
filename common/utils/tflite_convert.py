@@ -25,7 +25,7 @@ def tflite_convert(model: Union[str, tf.keras.Model], save_dir: str, quantize: b
     def representative_dataset_gen():
       # Get sample input data as a numpy array in a method of your choosing.
       for data in dataset:
-        yield [data]
+        yield data
     converter.representative_dataset = representative_dataset_gen
     converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
     converter.inference_input_type = tf.uint8
@@ -42,7 +42,7 @@ def tflite_convert(model: Union[str, tf.keras.Model], save_dir: str, quantize: b
       print("Compile for EdgeTpu")
       print(tf.__version__)
       subprocess.run("edgetpu_compiler -a -o %s %s" % (save_dir, tflite_model_path), shell=True)
-      print("Saved Quantized EdgeTpu Model to: " + tflite_model_path)
+      print("Saved Quantized EdgeTpu Model to: " + save_dir)
   
   else:
     tflite_model = converter.convert()

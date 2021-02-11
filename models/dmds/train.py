@@ -44,10 +44,10 @@ if __name__ == "__main__":
         td, vd = load_ids(
             con,
             data_split=(70, 30),
-            limit=100,
             shuffle_data=False,
             mongodb_filter={"scene_token": scene_token},
             sort_by={"timestamp": 1},
+            limit=100
         )
         train_data = adapt_doc_ids(train_data)
         val_data = adapt_doc_ids(val_data)
@@ -85,6 +85,8 @@ if __name__ == "__main__":
 
     model.compile(optimizer=opt, metrics=[])
     model.summary()
+
+    # model.run_eagerly = True
 
     # Train model
     storage_path = "./trained_models/dmds_ds_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")

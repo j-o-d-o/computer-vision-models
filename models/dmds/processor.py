@@ -60,10 +60,13 @@ class ProcessImages(IPreProcessor):
         img_t1, _ = resize_img(img_t1, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM)
         img_t1 = img_t1.astype(np.float32)
 
-        # input_data = {
-        #     "t0": img_t0,
-        #     "t1": img_t0
-        # }
-        input_data = [img_t0, img_t1]
+        # currently hardcoded
+        intr = np.array([
+            [375.0,  0.0, 160.0],
+            [ 0.0, 375.0, 128.0],
+            [ 0.0,   0.0,   1.0]
+        ], dtype=np.float32)
+
+        input_data = [img_t0, img_t1, intr]
 
         return raw_data, input_data, None, piped_params
