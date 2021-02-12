@@ -83,7 +83,7 @@ class DmdsLoss:
         tensor_abs = tf.abs(obj_motion_map)
         mean = tf.stop_gradient(tf.reduce_mean(tensor_abs, axis=[1, 2], keepdims=True))
         alpha_mot = 1.0
-        return alpha_mot * tf.reduce_mean(2 * mean * tf.sqrt(tensor_abs / (mean + 1e-24) + 1))
+        return alpha_mot * tf.reduce_mean(2 * mean * tf.sqrt(tensor_abs / (mean + 1e-10) + 1))
 
     def mm_group_smoothness(self, mm):
         grad_dx = mm - tf.roll(mm, 1, 1)
@@ -100,10 +100,10 @@ class DmdsLoss:
             return img[:, :-1, :, :] - img[:, 1:, :, :]
         # small variance loss to discourage that everything is constant in the depth map
         mean_depth = tf.reduce_mean(depth_map)
-        depth_var = tf.reduce_mean(tf.square(depth_map / (mean_depth + 1e-24) - 1.0))
-        depth_var = (1.0 / (depth_var + 1e-24))
+        depth_var = tf.reduce_mean(tf.square(depth_map / (mean_depth + 1e-10) - 1.0))
+        depth_var = (1.0 / (depth_var + 1e-10))
         # smoothing loss
-        disp = 1.0 / depth_map
+        disp = 1.0 / (depth_map + 1e-10)
         disp_dx = _gradient_x(disp)
         disp_dy = _gradient_y(disp)
         img_dx = _gradient_x(img)
@@ -157,7 +157,7 @@ class DmdsLoss:
         # t = tf.math.multiply_no_nan(mask, self.norm(trans_zero))
         t = self.norm(trans_zero)
 
-        translation_error = tf.reduce_mean(t / (1e-24 + self.norm(T_forward) + self.norm(T_backward_warped)))
+        translation_error = tf.reduce_mean(t / (1e-10 + self.norm(T_forward) + self.norm(T_backward_warped)))
         
         alpha_cyc = 1.0e-3
         beta_cyc = 5.0e-2

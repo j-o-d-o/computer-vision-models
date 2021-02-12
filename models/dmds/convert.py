@@ -10,6 +10,13 @@ from common.utils import resize_img, tflite_convert
 
 
 def create_dataset(input_shape):
+    # for now, fixed intrinsics specific to the driving stereo dataset at 320x128
+    intr = np.array([
+        [375.0,  0.0, 160.0],
+        [ 0.0, 375.0, 128.0],
+        [ 0.0,   0.0,   1.0]
+    ], dtype=np.float32)
+
     print("Resize Input to: " + str(input_shape))
     dataset = []
     
@@ -29,7 +36,7 @@ def create_dataset(input_shape):
         img_t1 = cv2.imdecode(decoded_img_t1, cv2.IMREAD_COLOR)
         img_t1, _ = resize_img(img_t1, input_shape[2], input_shape[1], offset_bottom=0)
 
-        dataset.append([np.array([img_t0], dtype=np.float32), np.array([img_t0], dtype=np.float32)])
+        dataset.append([np.array([img_t0], dtype=np.float32), np.array([img_t0], dtype=np.float32), intr])
 
     return dataset
 
