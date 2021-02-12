@@ -182,6 +182,16 @@ class MongoDBGenerator(BaseDataGenerator):
                 for batch in batch_y:
                     for key in batch:
                         ground_truth[key].append(np.asarray(batch[key]))
+            if isinstance(batch_y[0], list):
+                # multiple inputs, split them up by index
+                len_outputs = len(batch_y[0])
+                for i in range(len_outputs):
+                    ground_truth.append([])
+                for batch in batch_y:
+                    for i in range(len_outputs):
+                        ground_truth[i].append(np.asarray(batch[i]))
+                for i in range(len_outputs):
+                    ground_truth[i] = np.asarray(ground_truth[i])
             elif batch_y[0] is not None:
                 ground_truth = np.asarray(batch_y)
 

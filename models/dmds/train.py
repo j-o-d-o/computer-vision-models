@@ -83,10 +83,11 @@ if __name__ == "__main__":
     else:
         model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
 
-    model.compile(optimizer=opt, metrics=[])
+    # custom_loss parameter only works because we override the compile() and train_step() of the tf.keras.Model
+    model.compile(optimizer=opt, custom_loss=DmdsLoss())
     model.summary()
 
-    # model.run_eagerly = True
+    model.run_eagerly = True
 
     # Train model
     storage_path = "./trained_models/dmds_ds_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
