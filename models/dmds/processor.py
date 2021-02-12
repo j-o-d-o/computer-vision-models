@@ -12,20 +12,7 @@ class ProcessImages(IPreProcessor):
     def __init__(self, params: DmdsParams):
         self.params: DmdsParams = params
 
-    def augment(self, img, mask):
-        afine_transform = A.Compose([
-            A.HorizontalFlip(p=0.4),
-            # A.OneOf([
-            #     # A.GridDistortion(interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
-            #     # A.ElasticTransform(interpolation=cv2.INTER_NEAREST, alpha_affine=10, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
-            #     A.ShiftScaleRotate(interpolation=cv2.INTER_NEAREST, rotate_limit=10, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
-            #     # A.OpticalDistortion(interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
-            # ], p=0.5),
-        ], additional_targets={'mask': 'image'})
-        afine_transformed = afine_transform(image=img, mask=mask)
-        img = afine_transformed["image"]
-        mask = afine_transformed["mask"]
-
+    def augment(self, img0, img1):
         transform = A.Compose([
             A.IAAAdditiveGaussianNoise(p=0.05),
             A.OneOf([
@@ -44,21 +31,35 @@ class ProcessImages(IPreProcessor):
                 A.RandomSnow(p=1.0),
                 A.RandomSunFlare(p=1.0)
             ], p=0.05),
-        ])
-        transformed = transform(image=img)
-        img = transformed["image"]
+        ], additional_targets={'img1': 'image'})
+        transformed = transform(image=img0, img1=img1)
+        img0 = transformed["image"]
+        img1 = transformed["img1"]
 
-        return img, mask
+        return img0, img1
 
     def process(self, raw_data, input_data, ground_truth, piped_params=None):
         # Add input_data
         img_t0 = cv2.imdecode(np.frombuffer(raw_data[0]["img"], np.uint8), cv2.IMREAD_COLOR)
         img_t0, _ = resize_img(img_t0, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM)
-        img_t0 = img_t0.astype(np.float32)
 
         img_t1 = cv2.imdecode(np.frombuffer(raw_data[1]["img"], np.uint8), cv2.IMREAD_COLOR)
         img_t1, _ = resize_img(img_t1, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM)
+
+        # img_t0, img_t1 = self.augment(img_t0, img_t1)
+        img_t0 = img_t0.astype(np.float32)
         img_t1 = img_t1.astype(np.float32)
+
+        # Add ground_truth mask
+        mask_t0 = cv2.imdecode(np.frombuffer(raw_data[0]["depth"], np.uint8), cv2.IMREAD_ANYDEPTH)
+        mask_t0, _ = resize_img(mask_t0, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
+        mask_t0 = mask_t0.astype(np.float32)
+        mask_t0 /= 255.0
+
+        mask_t1 = cv2.imdecode(np.frombuffer(raw_data[1]["depth"], np.uint8), cv2.IMREAD_ANYDEPTH)
+        mask_t1, _ = resize_img(mask_t1, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
+        mask_t1 = mask_t1.astype(np.float32)
+        mask_t1 /= 255.0
 
         # currently hardcoded
         intr = np.array([
@@ -68,5 +69,6 @@ class ProcessImages(IPreProcessor):
         ], dtype=np.float32)
 
         input_data = [img_t0, img_t1, intr]
+        ground_truth = [mask_t0, mask_t1]
 
-        return raw_data, input_data, None, piped_params
+        return raw_data, input_data, ground_truth, piped_params

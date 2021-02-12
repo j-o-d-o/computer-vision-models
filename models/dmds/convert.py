@@ -23,7 +23,7 @@ def create_dataset(input_shape):
     # Create sample dataset for post training quantization
     client = MongoClient("mongodb://localhost:27017")
     collection = client["depth"]["driving_stereo"]
-    documents = collection.find({}).limit(40)
+    documents = collection.find({}).limit(200)
 
     documents_list = list(documents)
     assert(len(documents_list) > 0)

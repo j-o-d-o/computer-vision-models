@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, ReLU, Concatenate, Flatten, Dense
+from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, ReLU, Concatenate, Flatten, Dense, Dropout, Lambda
 from tensorflow.keras.models import Model
 from tensorflow.keras.utils import plot_model
 from tensorflow.python.keras.engine import data_adapter
@@ -20,11 +20,11 @@ class DmdsModel(Model):
 
     def train_step(self, data):
         data = data_adapter.expand_1d(data)
-        in_data, _, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+        in_data, gt, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
 
         with tf.GradientTape() as tape:
             y_pred = self(in_data, training=True)
-            loss = self.custom_loss.calc(in_data[0], in_data[1], y_pred[0], y_pred[1], y_pred[2], y_pred[3], y_pred[4], in_data[2])
+            loss = self.custom_loss.calc(in_data[0], in_data[1], y_pred[0], y_pred[1], y_pred[2], y_pred[3], y_pred[4], y_pred[5], gt[0], gt[1])
 
         grads = tape.gradient(loss, self.trainable_variables)
         self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
@@ -37,12 +37,14 @@ class DmdsModel(Model):
             img1 = in_data[1] / 255.0
             c1 = tf.unstack(img1, axis=-1)
             img1 = tf.stack([c1[2], c1[1], c1[0]], axis=-1)
-            depth0 = y_pred[0] / 120.0
-            depth1 = y_pred[1] / 120.0
+            depth0 = y_pred[0] / 100.0
+            depth1 = y_pred[1] / 100.0
             tf.summary.image("img0", img0, max_outputs=4, step=0)
             tf.summary.image("img1", img1, max_outputs=4, step=0)
             tf.summary.image("depth0", depth0, max_outputs=4, step=0)
             tf.summary.image("depth1", depth1, max_outputs=4, step=0)
+            tf.summary.histogram("depth_hist", depth0, step=0)
+
 
         loss_dict = self.custom_loss.loss_vals
         loss_dict["sum"] = loss
@@ -50,10 +52,10 @@ class DmdsModel(Model):
     
     def test_step(self, data):
         data = data_adapter.expand_1d(data)
-        in_data, _, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+        in_data, gt, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
 
         y_pred = self(in_data, training=False)
-        loss = self.custom_loss.calc(in_data[0], in_data[1], y_pred[0], y_pred[1], y_pred[2], y_pred[3], y_pred[4], in_data[2])
+        loss = self.custom_loss.calc(in_data[0], in_data[1], y_pred[0], y_pred[1], y_pred[2], y_pred[3], y_pred[4], y_pred[5], gt[0], gt[1])
 
         loss_dict = self.custom_loss.loss_vals
         loss_dict["sum"] = loss
@@ -71,15 +73,15 @@ def create_model(input_height: int, input_width: int, base_model_path: str = Non
     # depth_model_t0 = Model(inputs=input_t0, outputs=x0)
     # depth_model_t1 = Model(inputs=input_t1, outputs=x1)
 
-    x0 = Conv2D(16, (3, 3), padding="same", name="depth_map_t0_conv2d", use_bias=False)(x0)
-    x0 = BatchNormalization(name="depth_map_t0_batchnorm")(x0)
+    x0 = Conv2D(32, (3, 3), padding="same", name="depth_map_t0_conv2d")(x0)
     x0 = ReLU()(x0)
-    x0 = Conv2D(1, kernel_size=1, padding="same", activation="relu", name="depth_map_t0")(x0)
+    x0 = BatchNormalization()(x0)
+    x0 = Conv2D(1, kernel_size=1, padding="same", activation=None, name="depth_map_t0")(x0)
 
-    x1 = Conv2D(16, (3, 3), padding="same", name="depth_map_t1_conv2d", use_bias=False)(x1)
-    x1 = BatchNormalization(name="depth_map_t1_batchnorm")(x1)
+    x1 = Conv2D(32, (3, 3), padding="same", name="depth_map_t1_conv2d")(x1)
     x1 = ReLU()(x1)
-    x1 = Conv2D(1, kernel_size=1, padding="same", activation="relu", name="depth_map_t1")(x1)
+    x1 = BatchNormalization()(x1)
+    x1 = Conv2D(1, kernel_size=1, padding="same", activation=None, name="depth_map_t1")(x1)
 
     # Motion Network
     # =======================================
@@ -91,23 +93,35 @@ def create_model(input_height: int, input_width: int, base_model_path: str = Non
     mm = ReLU()(mm)
     mm = Conv2D(3, kernel_size=1, padding="same", name="motion_map")(mm)
 
-    rot = Conv2D(16, (3, 3), name="rot_conv2d", use_bias=False)(mn_fms[-1])
-    rot = BatchNormalization(name="rot_batchnorm")(rot)
+    rot = Conv2D(64, (3, 3), strides=(2, 2), name="rot1_conv2d", use_bias=False)(mn_fms[-1])
+    rot = BatchNormalization()(rot)
+    rot = ReLU()(rot)
+    rot = Conv2D(64, (3, 3), strides=(2, 2), name="rot2_conv2d", use_bias=False)(rot)
+    rot = BatchNormalization()(rot)
     rot = ReLU()(rot)
     rot = Flatten()(rot)
-    rot = Dense(128)(rot)
-    rot = Dense(32)(rot)
+    rot = Dropout(0.35)(rot)
+    rot = Dense(64, activation="relu")(rot)
+    rot = Dropout(0.3)(rot)
+    rot = Dense(16, activation="relu")(rot)
+    rot = Dropout(0.15)(rot)
     rot = Dense(3)(rot)
 
-    tran = Conv2D(16, (3, 3), name="tran_conv2d", use_bias=False)(mn_fms[-1])
-    tran = BatchNormalization(name="tran_batchnorm")(tran)
+    tran = Conv2D(64, (3, 3), strides=(2, 2), name="tran1_conv2d", use_bias=False)(mn_fms[-1])
+    tran = BatchNormalization()(tran)
+    tran = ReLU()(tran)
+    tran = Conv2D(64, (3, 3), strides=(2, 2), name="tran2_conv2d", use_bias=False)(tran)
+    tran = BatchNormalization()(tran)
     tran = ReLU()(tran)
     tran = Flatten()(tran)
-    tran = Dense(128)(tran)
-    tran = Dense(32)(tran)
+    tran = Dropout(0.35)(tran)
+    tran = Dense(64, activation="relu")(tran)
+    tran = Dropout(0.3)(tran)
+    tran = Dense(16, activation="relu")(tran)
+    tran = Dropout(0.15)(tran)
     tran = Dense(3)(tran)
 
-    model = DmdsModel(inputs=[input_t0, input_t1, intr], outputs=[x0, x1, mm, rot, tran])
+    model = DmdsModel(inputs=[input_t0, input_t1, intr], outputs=[x0, x1, mm, rot, tran, intr])
 
     return model
 

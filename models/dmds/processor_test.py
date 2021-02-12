@@ -49,22 +49,27 @@ class TestProcessors:
         train_gen = MongoDBGenerator(
             self.collection_details,
             self.train_data,
-            batch_size=7,
+            batch_size=8,
             processors=[ProcessImages(self.params)],
             data_group_size=2,
             continues_data_selection=False,
             shuffle_data=False
         )
 
-        for batch_x, _ in train_gen:
+        for batch_x, batch_y in train_gen:
             for i in range(len(batch_x[0])):
                 assert len(batch_x[0]) > 0
                 img_t0 = batch_x[0][i]
                 img_t1 = batch_x[1][i]
 
-                f, (ax1, ax2) = plt.subplots(1, 2)
-                ax1.imshow(cv2.cvtColor(img_t0.astype(np.uint8), cv2.COLOR_BGR2RGB))
-                ax2.imshow(cv2.cvtColor(img_t1.astype(np.uint8), cv2.COLOR_BGR2RGB))
+                mask_t0 = batch_y[0][i]
+                mask_t1 = batch_y[1][i]
+
+                f, ((ax11, ax12), (ax21, ax22)) = plt.subplots(2, 2)
+                ax11.imshow(cv2.cvtColor(img_t0.astype(np.uint8), cv2.COLOR_BGR2RGB))
+                ax12.imshow(cv2.cvtColor(img_t1.astype(np.uint8), cv2.COLOR_BGR2RGB))
+                ax21.imshow(mask_t0, cmap='gray', vmin=0, vmax=170)
+                ax22.imshow(mask_t1, cmap='gray', vmin=0, vmax=170)
                 #plt.show()
                 plt.draw()
                 plt.waitforbuttonpress(0) # this will wait for indefinite time

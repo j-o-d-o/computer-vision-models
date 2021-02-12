@@ -101,9 +101,9 @@ class DmdsLoss:
         # small variance loss to discourage that everything is constant in the depth map
         mean_depth = tf.reduce_mean(depth_map)
         depth_var = tf.reduce_mean(tf.square(depth_map / (mean_depth + 1e-10) - 1.0))
-        depth_var = (1.0 / (depth_var + 1e-10))
+        depth_var = (1.0 / (depth_var + 1e-12))
         # smoothing loss
-        disp = 1.0 / (depth_map + 1e-10)
+        disp = 1.0 / (depth_map + 1e-12)
         disp_dx = _gradient_x(disp)
         disp_dy = _gradient_y(disp)
         img_dx = _gradient_x(img)
@@ -116,6 +116,17 @@ class DmdsLoss:
         loss_val_y = tf.reduce_mean(abs(smoothness_y))
         alpha_dep = 0.001
         return alpha_dep * (loss_val_x + loss_val_y + depth_var)
+
+    def depth_mask(self, x, gt):
+        # All 0 values should not contribute, but network should not learn this mask
+        pos_mask = tf.stop_gradient(tf.cast(tf.greater(gt, 0.1), tf.float32))
+        n = tf.reduce_sum(pos_mask)
+        loss_val = pos_mask * (x - gt)
+        loss_val = tf.math.abs(loss_val)
+        loss_val = tf.reduce_sum(loss_val)
+        loss_val = tf.cond(tf.greater(n, 0), lambda: (loss_val) / n, lambda: loss_val)
+        alpha_gt_depth = 0.05
+        return loss_val * alpha_gt_depth
 
     def rgbd_consistency_loss(self, img1, img0_warped, x1, x0_warped, mask):
         # rgb loss
@@ -163,11 +174,20 @@ class DmdsLoss:
         beta_cyc = 5.0e-2
         return alpha_cyc * R_error + beta_cyc * translation_error
 
-    def calc(self, img0, img1, x0, x1, mm, tran, rot, intr):
+    def calc(self, img0, img1, x0, x1, mm, tran, rot, intr, depth_mask0, depth_mask1):
+        # softplus activation for depth maps
+        x0 = tf.math.log(1.0 + tf.math.exp(x0))
+        x1 = tf.math.log(1.0 + tf.math.exp(x1))
+
         # Depth Regularization
         # ===========================================================================
         self.loss_vals["depth0"] = self.depth_edge_aware_smoothness(x0, img0)
         self.loss_vals["depth1"] = self.depth_edge_aware_smoothness(x1, img1)
+
+        x0_squeezed = tf.squeeze(x0, axis=3)
+        x1_squeezed = tf.squeeze(x1, axis=3)
+        self.loss_vals["depth_mask0"] = self.depth_mask(x0_squeezed, depth_mask0)
+        self.loss_vals["depth_mask1"] = self.depth_mask(x1_squeezed, depth_mask1)
 
         # Motion Regularization
         # ===========================================================================
@@ -183,7 +203,6 @@ class DmdsLoss:
         ego_mm = tf.broadcast_to(self.expand_dims_twice(tran, -2), shape=tf.shape(mm))
         T = mm + ego_mm
         # Warp img0 and x0 into frame t1
-        x0_squeezed = tf.squeeze(x0, axis=3)
         px, py, x0_warped, mask = self.warp_it(x0_squeezed, T, R, K, K_inv)
         img0_warped = resampler_with_unstacked_warp(img0, px, py)
         # Masks out everything that is out of the image, network does not need to learn this masking, cutting gradient
@@ -207,7 +226,7 @@ class DmdsLoss:
         # ax22.imshow(x0_warped[0], cmap='gray', vmin=0, vmax=170)
         # plt.show()
 
-        return self.loss_vals["depth0"] + self.loss_vals["depth1"] + self.loss_vals["mm_sparsity"] + \
+        return self.loss_vals["depth_mask0"] + self.loss_vals["depth_mask1"] + self.loss_vals["depth0"] + self.loss_vals["depth1"] + self.loss_vals["mm_sparsity"] + \
           self.loss_vals["mm_group_smooth"] + self.loss_vals["rgb_consistency"] + self.loss_vals["motion_field_consistency"]
 
 
