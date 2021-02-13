@@ -49,6 +49,8 @@ class ProcessImages(IPreProcessor):
         # img_t0, img_t1 = self.augment(img_t0, img_t1)
         img_t0 = img_t0.astype(np.float32)
         img_t1 = img_t1.astype(np.float32)
+        img_t0 = (2.0 * (img_t0 - 127.0)) / 255.0
+        img_t1 = (2.0 * (img_t1 - 127.0)) / 255.0
 
         # Add ground_truth mask
         mask_t0 = cv2.imdecode(np.frombuffer(raw_data[0]["depth"], np.uint8), cv2.IMREAD_ANYDEPTH)
