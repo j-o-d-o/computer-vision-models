@@ -5,6 +5,7 @@ dependencies:
   - pip:
     - tensorflow-gpu
     - tensorflow-model-optimization
+    - tensorflow_graphics
     - pytest
     - matplotlib
     - pydot
