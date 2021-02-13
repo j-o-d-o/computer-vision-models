@@ -10,18 +10,6 @@ from common.callbacks import SaveToStorage
 from common.utils import Logger, Config, set_up_tf_gpu
 from models.dmds import create_model, DmdsParams, ProcessImages, DmdsLoss
 
-
-def adapt_doc_ids(doc_ids):
-    adapted_doc_ids = []
-    for i in range(0, len(doc_ids) - 1):
-        t0 = doc_ids[i]
-        t1 = doc_ids[i+1]
-        adapted_doc_ids.append(t0)
-        adapted_doc_ids.append(t1)
-        adapted_doc_ids.append(t1)
-        adapted_doc_ids.append(t0)
-    return adapted_doc_ids
-
 if __name__ == "__main__":
     Logger.init()
     Logger.remove_file_logger()
@@ -82,8 +70,6 @@ if __name__ == "__main__":
             mongodb_filter={"scene_token": scene_token},
             sort_by={"timestamp": 1},
         )
-        td = adapt_doc_ids(td)
-        vd = adapt_doc_ids(vd)
         train_data.append(td)
         val_data.append(vd)
         collection_details.append(con)
@@ -107,7 +93,7 @@ if __name__ == "__main__":
     )
 
     # Create Model
-    opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    opt = optimizers.Adam(lr=0.005, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
 
     if params.LOAD_PATH is not None:
         with tfmot.quantization.keras.quantize_scope():
