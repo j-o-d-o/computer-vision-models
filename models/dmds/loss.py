@@ -7,8 +7,8 @@ import cv2
 from common.utils import resize_img
 import matplotlib.pyplot as plt
 # from models.dmds.resampler import resampler_with_unstacked_warp
-from models.dmds.ref_imp import consistency_losses
-from models.dmds.ref_imp import transform_depth_map
+from models.dmds_ref import consistency_losses
+from models.dmds_ref import transform_depth_map
 
 
 class DmdsLoss:
@@ -71,7 +71,7 @@ class DmdsLoss:
         weights_y = tf.exp(-tf.reduce_mean(tf.abs(img_dy), 3, keepdims=True))
         smoothness_x = disp_dx * weights_x
         smoothness_y = disp_dy * weights_y
-        self.loss_vals["depth_smooth"] = (tf.reduce_mean(abs(smoothness_x)) + tf.reduce_mean(abs(smoothness_y))) * 0.01
+        self.loss_vals["depth_smooth"] = (tf.reduce_mean(abs(smoothness_x)) + tf.reduce_mean(abs(smoothness_y))) * 0.001
 
     # def calc_depth_mask(self, x, gt):
     #     # All 0 values should not contribute, but network should not learn this mask
@@ -103,7 +103,7 @@ class DmdsLoss:
         # Motionmap regualizer
         # ==========================================================================
         background_translation = tf.broadcast_to(self.expand_dims_twice(tran, -2), shape=tf.shape(mm))
-        background_translation_inv = tf.broadcast_to(self.expand_dims_twice(tran, -2), shape=tf.shape(mm))
+        background_translation_inv = tf.broadcast_to(self.expand_dims_twice(tran_inv, -2), shape=tf.shape(mm))
         background_translation_stack = tf.concat([background_translation, background_translation_inv], axis=0)
         residual_translation_stack = tf.concat([mm, mm_inv], axis=0)
         translation_stack = residual_translation_stack + background_translation_stack
@@ -120,8 +120,7 @@ class DmdsLoss:
             translation_stack, rotation_stack, intr_stack, intr_inv_stack)
 
         flipped_rgb_stack = tf.concat([img1, img0], axis=0)
-        flipped_depth_stack = tf.concat([x1, x0], axis=0)
-        flipped_depth_stack = tf.stop_gradient(flipped_depth_stack)
+        flipped_depth_stack = tf.stop_gradient(tf.concat([x1, x0], axis=0))
         flipped_rotation_stack = tf.concat([rot_inv, rot], axis=0)
         filpped_background_translation_stack = tf.concat([background_translation_inv, background_translation], axis=0)
         flipped_residual_translation_stack = tf.concat([mm_inv, mm], axis=0)
@@ -131,11 +130,11 @@ class DmdsLoss:
             transformed_depth, rgb_stack, flipped_depth_stack, flipped_rgb_stack,
             rotation_stack, translation_stack, flipped_rotation_stack, flipped_translation_stack, None)
 
-        self.loss_vals["depth_error"] = loss_endpoints["depth_error"] * 0.01 # 1.0e-5
+        self.loss_vals["depth_error"] = loss_endpoints["depth_error"] * 1.0e-5
         self.loss_vals["rgb_error"] = loss_endpoints["rgb_error_mean"] * 2.0
         self.loss_vals["ssim_error"] = loss_endpoints["ssim_error_mean"] * 4.0
-        self.loss_vals["rotation_error"] = loss_endpoints["rotation_error"] * 0.05 # 1.0e-3
-        self.loss_vals["translation_error"] = loss_endpoints["translation_error"] * 0.1 # 5.0e-2
+        self.loss_vals["rotation_error"] = loss_endpoints["rotation_error"] * 1.0e-3
+        self.loss_vals["translation_error"] = loss_endpoints["translation_error"] * 5.0e-2
 
         loss_val = self.loss_vals["depth_smooth"] + self.loss_vals["depth_var"] + self.loss_vals["mm_sparsity"] + \
             self.loss_vals["mm_smooth"] + self.loss_vals["depth_error"] + self.loss_vals["rgb_error"] + \
@@ -174,10 +173,10 @@ def test():
         x1 = np.expand_dims(x1, axis=-1)
 
         mm = np.zeros((*img0.shape[:-1], 3), dtype=np.float32)
-        mm[20:100, 20:100, :] = [2.0, 0.0, 0.0]
+        # mm[20:100, 20:100, :] = [2.0, 0.0, 0.0]
 
         rot = np.zeros((batch_size, 3), dtype=np.float32)
-        rot[:,] = np.array([0.0, 0.1, 0.0])
+        rot[:,] = np.array([0.0, 0.0, 0.0])
         tran = np.zeros((batch_size, 3), dtype=np.float32)
         tran[:,] = np.array([0.0, 0.0, 0.0])
 
@@ -194,7 +193,7 @@ def test():
 
         x0 /= 256.0
         x1 /= 256.0
-        loss.calc(img0, img1, x0, x1, mm, mm, tran, tran, rot, rot, intr)
+        loss.calc(img0, img0, x0, x0, mm, mm, tran, tran, rot, rot, intr, x0, x1)
 
 if __name__ == "__main__":
     test()
