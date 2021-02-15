@@ -2,8 +2,8 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
-from common.utils import Config, Logger, to_3channel
-from models.depth.params import DepthParams
+from common.utils import Config, Logger
+from models.depth.params import Params
 from models.depth.processor import ProcessImages
 
 
@@ -15,36 +15,48 @@ class TestProcessors:
         Logger.init()
         Logger.remove_file_logger()
 
-        self.params = DepthParams()
+        self.params = Params()
 
         # get one entry from the database
         Config.add_config('./config.ini')
-        self.collection_details = ("local_mongodb", "depth", "driving_stereo")
+        collection_details = ("local_mongodb", "depth", "driving_stereo")
+        scenes = [
+            "2018-10-26-15-24-18",
+            "2018-10-19-09-30-39",
+        ]
+        self.train_data = []
+        self.val_data = []
+        self.collection_details = []
 
-        # Create Data Generators
-        self.train_data, self.val_data = load_ids(
-            self.collection_details,
-            data_split=(70, 30),
-            limit=100,
-        )
+        # get ids
+        for scene_token in scenes:
+            td, vd = load_ids(
+                collection_details,
+                data_split=(70, 30),
+                limit=100,
+                shuffle_data=True,
+                mongodb_filter={"scene_token": scene_token},
+            )
+            self.train_data.append(td)
+            self.val_data.append(vd)
+            self.collection_details.append(collection_details)
 
     def test_process_image(self):
         train_gen = MongoDBGenerator(
             self.collection_details,
             self.train_data,
-            batch_size=20,
-            processors=[ProcessImages(self.params)]
+            batch_size=8,
+            processors=[ProcessImages(self.params)],
+            shuffle_data=True
         )
 
-        batch_x, batch_y = train_gen[0]
+        for batch_x, batch_y in train_gen:
+            for i in range(len(batch_x)):
+                assert len(batch_x[0]) > 0
+                img_t0 = batch_x[i]
+                mask_t0 = batch_y[i]
 
-        for i, input_data in enumerate(batch_x):
-            assert len(input_data) > 0
-            mask_img = batch_y[i] * 256
-            mask_img = mask_img.astype(np.uint16)
-
-            f, (ax1, ax2) = plt.subplots(1, 2)
-            ax1.imshow(cv2.cvtColor(input_data.astype(np.uint8), cv2.COLOR_BGR2RGB))
-            ax2.imshow(cv2.cvtColor(mask_img, cv2.COLOR_BGR2RGB))
-            ax2.imshow(mask_img, cmap='gray', vmin=0, vmax=25000)
-            plt.show()
+                f, (ax11, ax22) = plt.subplots(2, 1)
+                ax11.imshow(cv2.cvtColor(img_t0.astype(np.uint8), cv2.COLOR_BGR2RGB))
+                ax22.imshow(mask_t0, cmap='gray', vmin=0, vmax=170)
+                plt.show()

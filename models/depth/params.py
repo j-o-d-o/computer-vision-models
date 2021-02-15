@@ -1,14 +1,11 @@
-class DepthParams:
+class Params:
     def __init__(self):
         # Training
-        self.BATCH_SIZE = 6
+        self.BATCH_SIZE = 8
         self.PLANED_EPOCHS = 90
-        self.LOAD_PATH = None
-        self.LOAD_BASE_MODEL_PATH = None # weights just used for the encoder part
+        self.LOAD_PATH = None # "/home/computer-vision-models/trained_models/depth_ds_2021-02-15-075630/tf_model_1/keras.h5"
 
         # Input
-        self.INPUT_WIDTH = 640 # width of input img in [px]
-        self.INPUT_HEIGHT = 256 # height of input img in [px]
+        self.INPUT_WIDTH = 320 # width of input img in [px]
+        self.INPUT_HEIGHT = 128 # height of input img in [px]
         self.OFFSET_BOTTOM = 0 # offset in [px], applied before scaling, thus relative to org. img size
-        self.MASK_WIDTH = self.INPUT_WIDTH // 2 # width of the output mask
-        self.MASK_HEIGHT = self.INPUT_HEIGHT // 2 # height of the output mask

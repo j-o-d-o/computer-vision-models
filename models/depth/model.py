@@ -1,55 +1,33 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, ReLU
+from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, ReLU, Concatenate, Flatten, Dense, Dropout, Lambda
 from tensorflow.keras.models import Model
-from tensorflow.keras.regularizers import l2
-from tensorflow.keras.initializers import Constant
-from data.label_spec import SEMSEG_CLASS_MAPPING
-from common.layers import bottle_neck_block, upsample_block, encoder
-from typing import List
 from tensorflow.keras.utils import plot_model
-from models.semseg import SemsegParams, create_dataset
-from common.utils import tflite_convert
+from tensorflow.keras import initializers
+from models.depth import Params
+from models.depth.convert import create_dataset
+from common.utils import tflite_convert, resize_img
+from common.layers import encoder, upsample_block, bottle_neck_block
+from common.utils.set_weights import set_weights
 
 
 def create_model(input_height: int, input_width: int, base_model_path: str = None) -> tf.keras.Model:
-    """
-    Create a semseg model
-    :param input_height: Height of the input image
-    :param input_width: Width of the input image
-    :return: Semseg Keras Model
-    """
-    input_tensor = Input(shape=(input_height, input_width, 3))
+    inp = Input(shape=(input_height, input_width, 3))
+    x0, _ = encoder(8, inp, namescope="depth_model")
+    x0 = Conv2D(16, (3, 3), padding="same", name="depth_model_conv2d")(x0)
+    x0 = ReLU()(x0)
+    x0 = BatchNormalization()(x0)
+    x0 = Conv2D(1, kernel_size=1, padding="same", activation="softplus", name="depth_map")(x0)
 
-    x = encoder(16, input_tensor)
-    encoder_model = Model(inputs=[input_tensor], outputs=[x])
+    depth_model = Model(inputs=inp, outputs=x0)
     if base_model_path is not None:
-        # Store names of base model layerslayers of model in dict
-        base_model = tf.keras.models.load_model(base_model_path, compile=False)
-        base_layer_dict = dict([(layer.name, layer) for layer in base_model.layers]) 
-        # Loop through actual model and see if names are matching, set weights in case they are
-        for layer in encoder_model.layers:
-            if layer.name in base_layer_dict:
-                print(f"Setting weights for {layer.name}")
-                layer.set_weights(base_layer_dict[layer.name].get_weights())
-            else:
-                print(f"Not found: {layer.name}")
+        depth_model = set_weights(base_model_path, depth_model)
 
-
-    x = Conv2D(32, (3, 3), padding="same", name="semseg_head_conv2d", use_bias=False)(x)
-    x = BatchNormalization(name="semseg_head_batchnorm")(x)
-    x = ReLU(name="semseg_head_activation")(x)
-
-    out = Conv2D(len(SEMSEG_CLASS_MAPPING), kernel_size=1, name="semseg_out", kernel_regularizer=l2(l=0.0001))(x)
-
-    model = Model(inputs=encoder_model.inputs, outputs=[out])
-
-    return model
+    return depth_model
 
 
 if __name__ == "__main__":
-    params = SemsegParams()
-    model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH, "/home/computer-vision-models/tmp/load_from_model/keras.h5")
-    # model.input.set_shape((1,) + model.input.shape[1:])
-    # model.summary()
-    plot_model(model, to_file="./tmp/semseg_model.png")
-    # tflite_convert(model, "./tmp", True, True, create_dataset(model.input.shape))
+    params = Params()
+    model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
+    model.summary()
+    plot_model(model, to_file="./tmp/depth_model.png")
+    tflite_convert(model, "./tmp", True, True, create_dataset(model.input[0].shape))
