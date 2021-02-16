@@ -11,6 +11,7 @@ import argparse
 import time
 from pymongo import MongoClient
 from common.utils import resize_img, set_up_tf_gpu
+from models.dmds.model import DmdsModel, ScaleConstraint
 
 
 if __name__ == "__main__":
@@ -28,9 +29,8 @@ if __name__ == "__main__":
     set_up_tf_gpu(tf)
 
     # For debugging force a value here
-    args.use_edge_tpu = True
-    args.model_path = "/home/computer-vision-models/tmp/model_quant_edgetpu.tflite"
-    # args.model_path = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-06-062841/tf_model_40/keras.h5"
+    args.use_edge_tpu = False
+    args.model_path = "/home/computer-vision-models/trained_models/dmds_ds_2021-02-16-075129/tf_model_0/keras.h5"
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]
@@ -54,12 +54,13 @@ if __name__ == "__main__":
         output_details = interpreter.get_output_details()
     else:
         with tfmot.quantization.keras.quantize_scope():
-            model: tf.keras.models.Model = tf.keras.models.load_model(args.model_path, compile=False)
+            custom_objects = {
+                "DmdsModel": DmdsModel,
+                "ScaleConstraint": ScaleConstraint
+            }
+            model: tf.keras.models.Model = tf.keras.models.load_model(args.model_path, custom_objects, compile=False)
         model.summary()
         print("Using Tensorflow")
-
-    # create pygame display to show images
-    display = pygame.display.set_mode((args.img_width * 2, args.img_height), pygame.HWSURFACE | pygame.DOUBLEBUF)
 
     # alternative data source, mp4 video
     # cap = cv2.VideoCapture('/path/to/video.mp4')
@@ -67,7 +68,7 @@ if __name__ == "__main__":
     # while (cap.isOpened()):
     #     ret, img = cap.read()
 
-    documents = collection.find({}).limit(10)
+    documents = collection.find({}).limit(1000)
     documents = list(documents)
     for i in range(0, len(documents)-1):
         decoded_img_t0 = np.frombuffer(documents[i]["img"], np.uint8)
@@ -77,6 +78,12 @@ if __name__ == "__main__":
         decoded_img_t1 = np.frombuffer(documents[i+1]["img"], np.uint8)
         img_t1 = cv2.imdecode(decoded_img_t1, cv2.IMREAD_COLOR)
         img_t1, _ = resize_img(img_t1, args.img_width, args.img_height, args.offset_bottom)
+
+        intr = np.array([
+            [375.0,  0.0, 160.0],
+            [ 0.0, 375.0, 128.0],
+            [ 0.0,   0.0,   1.0]
+        ], dtype=np.float32)
 
         if is_tf_lite:
             interpreter.set_tensor(input_details[0]['index'], [img_t0])
@@ -88,19 +95,18 @@ if __name__ == "__main__":
             # The function `get_tensor()` returns a copy of the tensor data. Use `tensor()` in order to get a pointer to the tensor.
             # output_data = interpreter.get_tensor(output_details[0]['index'])
         else:
-            img_arr = np.array([img])
+            img_arr = [np.array([img_t0]), np.array([img_t1]), np.array([intr])]
             start_time = time.time()
             raw_result = model.predict(img_arr)
             elapsed_time = time.time() - start_time
-            semseg_img = raw_result[0]
+            x0, x1, mm, tran, rot, intr = raw_result
 
         print(str(elapsed_time) + " s")
 
-        input_surface_t0 = pygame.surfarray.make_surface(cv2.cvtColor(img_t0, cv2.COLOR_BGR2RGB).swapaxes(0, 1))
-        display.blit(input_surface_t0, (0, 0))
-        input_surface_t1 = pygame.surfarray.make_surface(cv2.cvtColor(img_t1, cv2.COLOR_BGR2RGB).swapaxes(0, 1))
-        display.blit(input_surface_t1, (args.img_width, 0))
-        pygame.display.flip()
-        # wait till keypress
-        event = pygame.event.wait()
-    pygame.quit()
+        f, ((ax11, ax12), (ax21, ax22)) = plt.subplots(2, 2)
+
+        ax11.imshow(cv2.cvtColor(img_t0.astype(np.uint8), cv2.COLOR_BGR2RGB))
+        ax21.imshow(x0[0], cmap="inferno", vmin=0, vmax=50)
+        ax12.imshow(cv2.cvtColor(img_t1.astype(np.uint8), cv2.COLOR_BGR2RGB))
+        ax21.imshow(x1[0], cmap="inferno", vmin=0, vmax=50)
+        plt.show()

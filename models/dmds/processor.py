@@ -49,19 +49,21 @@ class ProcessImages(IPreProcessor):
         # img_t0, img_t1 = self.augment(img_t0, img_t1)
         img_t0 = img_t0.astype(np.float32)
         img_t1 = img_t1.astype(np.float32)
-        img_t0 = (2.0 * (img_t0 - 127.0)) / 255.0
-        img_t1 = (2.0 * (img_t1 - 127.0)) / 255.0
+        # img_t0 = (2.0 * (img_t0 - 127.5)) / 255.0
+        # img_t1 = (2.0 * (img_t1 - 127.5)) / 255.0
 
         # Add ground_truth mask
         mask_t0 = cv2.imdecode(np.frombuffer(raw_data[0]["depth"], np.uint8), cv2.IMREAD_ANYDEPTH)
         mask_t0, _ = resize_img(mask_t0, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
         mask_t0 = mask_t0.astype(np.float32)
         mask_t0 /= 255.0
+        mask_t0 = np.expand_dims(mask_t0, axis=-1)
 
         mask_t1 = cv2.imdecode(np.frombuffer(raw_data[1]["depth"], np.uint8), cv2.IMREAD_ANYDEPTH)
         mask_t1, _ = resize_img(mask_t1, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
         mask_t1 = mask_t1.astype(np.float32)
         mask_t1 /= 255.0
+        mask_t1 = np.expand_dims(mask_t1, axis=-1)
 
         # currently hardcoded
         intr = np.array([

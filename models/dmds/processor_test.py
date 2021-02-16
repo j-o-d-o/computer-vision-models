@@ -5,7 +5,6 @@ from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.utils import Config, Logger
 from models.dmds.params import DmdsParams
 from models.dmds.processor import ProcessImages
-from models.dmds.train import adapt_doc_ids
 
 
 class TestProcessors:
@@ -31,18 +30,16 @@ class TestProcessors:
 
         # get ids
         for scene_token in scenes:
-            train_data, val_data = load_ids(
+            td, vd = load_ids(
                 collection_details,
-                data_split=(70, 30),
+                data_split=(80, 20),
                 limit=100,
                 shuffle_data=False,
                 mongodb_filter={"scene_token": scene_token},
                 sort_by={"timestamp": 1}
             )
-            train_data = adapt_doc_ids(train_data)
-            val_data = adapt_doc_ids(val_data)
-            self.train_data.append(train_data)
-            self.val_data.append(val_data)
+            self.train_data.append(td)
+            self.val_data.append(vd)
             self.collection_details.append(collection_details)
 
     def test_process_image(self):
@@ -52,11 +49,12 @@ class TestProcessors:
             batch_size=8,
             processors=[ProcessImages(self.params)],
             data_group_size=2,
-            continues_data_selection=False,
+            continues_data_selection=True,
             shuffle_data=False
         )
 
         for batch_x, batch_y in train_gen:
+            print("New BATCH!")
             for i in range(len(batch_x[0])):
                 assert len(batch_x[0]) > 0
                 img_t0 = batch_x[0][i]

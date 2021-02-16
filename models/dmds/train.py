@@ -8,7 +8,8 @@ from datetime import datetime
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.callbacks import SaveToStorage
 from common.utils import Logger, Config, set_up_tf_gpu
-from models.dmds import create_model, DmdsParams, ProcessImages, DmdsLoss
+from models.dmds import create_model, DmdsParams, ProcessImages
+from models.dmds.loss import DmdsLoss
 
 if __name__ == "__main__":
     Logger.init()
@@ -65,10 +66,10 @@ if __name__ == "__main__":
     for scene_token in scenes:
         td, vd = load_ids(
             con,
-            data_split=(92, 8),
+            data_split=(95, 5),
             shuffle_data=False,
             mongodb_filter={"scene_token": scene_token},
-            sort_by={"timestamp": 1},
+            sort_by={"timestamp": 1}
         )
         train_data.append(td)
         val_data.append(vd)
@@ -81,6 +82,7 @@ if __name__ == "__main__":
         batch_size=params.BATCH_SIZE,
         processors=processors,
         data_group_size=2,
+        continues_data_selection=True,
         shuffle_data=False
     )
     val_gen = MongoDBGenerator(
@@ -89,18 +91,19 @@ if __name__ == "__main__":
         batch_size=params.BATCH_SIZE,
         processors=processors,
         data_group_size=2,
+        continues_data_selection=True,
         shuffle_data=False
     )
 
     # Create Model
-    opt = optimizers.Adam(lr=0.005, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
 
     if params.LOAD_PATH is not None:
         with tfmot.quantization.keras.quantize_scope():
             custom_objects = {"SemsegLoss": loss}
             model: models.Model = models.load_model(params.LOAD_PATH, custom_objects=custom_objects, compile=False)
     else:
-        model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
+        model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH, params.LOAD_DEPTH_MODEL)
 
     # custom_loss parameter only works because we override the compile() and train_step() of the tf.keras.Model
     model.compile(optimizer=opt, custom_loss=DmdsLoss())
@@ -121,6 +124,6 @@ if __name__ == "__main__":
         verbose=1,
         callbacks=callbacks,
         initial_epoch=0,
-        workers=1,
+        workers=3,
         # use_multiprocessing=True
     )
