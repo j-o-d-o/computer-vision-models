@@ -12,7 +12,9 @@ from data.driving_stereo_depth import fill_depth_data
 
 
 class DmdsLoss:
-    def __init__(self):
+    def __init__(self, params):
+        self.params: DmdsParams = params
+
         self.loss_vals = {
             "depth_abs": 0,
             "depth_smooth": 0,
@@ -310,7 +312,8 @@ class DmdsLoss:
         return loss_val
 
 def test():
-    loss = DmdsLoss()
+    params = DmdsParams()
+    loss = DmdsLoss(params)
     batch_size = 8
 
     client = MongoClient("mongodb://localhost:27017")

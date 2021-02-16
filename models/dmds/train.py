@@ -106,7 +106,7 @@ if __name__ == "__main__":
         model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH, params.LOAD_DEPTH_MODEL)
 
     # custom_loss parameter only works because we override the compile() and train_step() of the tf.keras.Model
-    model.compile(optimizer=opt, custom_loss=DmdsLoss())
+    model.compile(optimizer=opt, custom_loss=DmdsLoss(params))
     model.summary()
 
     model.run_eagerly = True
