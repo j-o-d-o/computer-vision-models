@@ -98,7 +98,7 @@ if __name__ == "__main__":
     )
 
     # Create Model
-    opt = optimizers.Adam(lr=0.001)
+    opt = optimizers.Adam(lr=0.002)
 
     if params.LOAD_PATH is not None:
         model: models.Model = models.load_model(params.LOAD_PATH, custom_objects=custom_objects, compile=False)
