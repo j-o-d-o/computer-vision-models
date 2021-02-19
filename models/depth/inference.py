@@ -17,8 +17,8 @@ if __name__ == "__main__":
     parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
     parser.add_argument("--db", type=str, default="depth", help="MongoDB database")
     parser.add_argument("--collection", type=str, default="driving_stereo", help="MongoDB collection")
-    parser.add_argument("--img_width", type=int, default=320, help="Width of image, must be model input")
-    parser.add_argument("--img_height", type=int, default=128, help="Width of image, must be model input")
+    parser.add_argument("--img_width", type=int, default=640, help="Width of image, must be model input")
+    parser.add_argument("--img_height", type=int, default=256, help="Width of image, must be model input")
     parser.add_argument("--offset_bottom", type=int, default=0, help="Offset from the bottom in orignal image scale")
     parser.add_argument("--model_path", type=str, default="/path/to/tf_model_x/model_quant_edgetpu.tflite", help="Path to a tensorflow model folder")
     parser.add_argument("--use_edge_tpu", action="store_true", help="EdgeTpu should be used for inference")
@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     # For debugging force a value here
     args.use_edge_tpu = False
-    args.model_path = "/home/computer-vision-models/trained_models/depth_ds_2021-02-15-121653/tf_model_0/keras.h5"
+    args.model_path = "/home/computer-vision-models/trained_models/depth_ds_2021-02-18-181020/tf_model_0/keras.h5"
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]

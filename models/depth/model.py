@@ -12,11 +12,12 @@ from common.utils.set_weights import set_weights
 
 def create_model(input_height: int, input_width: int, base_model_path: str = None) -> tf.keras.Model:
     inp = Input(shape=(input_height, input_width, 3))
-    x0, _ = encoder(8, inp, namescope="depth_model")
-    x0 = Conv2D(16, (3, 3), padding="same", name="depth_model_conv2d")(x0)
+    inp_rescaled = tf.keras.layers.experimental.preprocessing.Rescaling(scale=1./127.5, offset=-1)(inp)
+
+    x0, _ = encoder(8, inp_rescaled, namescope="depth_model")
+    x0 = Conv2D(8, (3, 3), padding="same", name="depth_model_conv2d")(x0)
     x0 = ReLU()(x0)
-    x0 = BatchNormalization()(x0)
-    x0 = Conv2D(1, kernel_size=1, padding="same", activation="softplus", name="depth_map")(x0)
+    x0 = Conv2D(1, kernel_size=1, padding="same", name="depth_map")(x0)
 
     depth_model = Model(inputs=inp, outputs=x0)
     if base_model_path is not None:

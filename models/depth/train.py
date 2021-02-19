@@ -1,6 +1,7 @@
 import tensorflow as tf
 gpus = tf.config.experimental.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(gpus[0], True)
+tf.config.optimizer.set_jit(True)
 
 import tensorflow_model_optimization as tfmot
 from tensorflow.keras import optimizers, models, metrics
@@ -32,21 +33,21 @@ if __name__ == "__main__":
         "2018-10-24-14-13-21",
         "2018-10-23-13-59-11",
         "2018-10-12-07-57-23",
-        "2018-10-18-15-04-21",
-        "2018-10-17-14-35-33",
-        "2018-10-18-10-39-04",
-        "2018-10-30-13-45-14",
-        "2018-10-16-11-43-02",
-        "2018-07-27-11-39-31",
-        "2018-10-16-11-13-47",
-        "2018-07-24-14-31-18",
-        "2018-07-18-10-16-21",
-        "2018-07-16-15-37-46",
-        "2018-10-15-11-43-36",
-        "2018-10-16-07-40-57",
-        "2018-07-18-11-25-02",
-        "2018-10-17-15-38-01",
-        "2018-10-10-07-51-49",
+        # "2018-10-18-15-04-21",
+        # "2018-10-17-14-35-33",
+        # "2018-10-18-10-39-04",
+        # "2018-10-30-13-45-14",
+        # "2018-10-16-11-43-02",
+        # "2018-07-27-11-39-31",
+        # "2018-10-16-11-13-47",
+        # "2018-07-24-14-31-18",
+        # "2018-07-18-10-16-21",
+        # "2018-07-16-15-37-46",
+        # "2018-10-15-11-43-36",
+        # "2018-10-16-07-40-57",
+        # "2018-07-18-11-25-02",
+        # "2018-10-17-15-38-01",
+        # "2018-10-10-07-51-49",
         # These recs have cuts in them
         # "2018-08-17-09-45-58",
         # "2018-07-09-16-11-56",
@@ -66,7 +67,7 @@ if __name__ == "__main__":
     for scene_token in scenes:
         td, vd = load_ids(
             con,
-            data_split=(92, 8),
+            data_split=(95, 5),
             shuffle_data=True,
             mongodb_filter={"scene_token": scene_token},
             sort_by={"timestamp": 1},
@@ -99,17 +100,16 @@ if __name__ == "__main__":
     else:
         model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
 
-    # custom_loss parameter only works because we override the compile() and train_step() of the tf.keras.Model
-    model.compile(optimizer=opt, loss=DepthLoss())
-    model.summary()
-
-    model.run_eagerly = True
-
     # Train model
     storage_path = "./trained_models/depth_ds_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
     callbacks = [SaveToStorage(storage_path, model, True), tensorboard_callback]
-    # model.init_file_writer(storage_path + "/images")
+
+    # custom_loss parameter only works because we override the compile() and train_step() of the tf.keras.Model
+    model.compile(optimizer=opt, loss=DepthLoss(save_path=storage_path))
+    model.summary()
+
+    model.run_eagerly = True
 
     model.fit(
         train_gen,
