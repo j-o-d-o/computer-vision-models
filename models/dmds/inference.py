@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     # For debugging force a value here
     args.use_edge_tpu = False
-    args.model_path = "/home/computer-vision-models/trained_models/dmds_ds_2021-02-16-075129/tf_model_0/keras.h5"
+    args.model_path = "/home/computer-vision-models/trained_models/dmds_ds_2021-02-16-231612/tf_model_1/keras.h5"
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]
@@ -105,8 +105,11 @@ if __name__ == "__main__":
 
         f, ((ax11, ax12), (ax21, ax22)) = plt.subplots(2, 2)
 
+        x0 = 1/x0
+        x1 = 1/x1
+
         ax11.imshow(cv2.cvtColor(img_t0.astype(np.uint8), cv2.COLOR_BGR2RGB))
-        ax21.imshow(x0[0], cmap="inferno", vmin=0, vmax=50)
+        ax21.imshow(x0[0], cmap="inferno", vmin=0, vmax=0.1)
         ax12.imshow(cv2.cvtColor(img_t1.astype(np.uint8), cv2.COLOR_BGR2RGB))
-        ax21.imshow(x1[0], cmap="inferno", vmin=0, vmax=50)
+        ax22.imshow(x1[0], cmap="inferno", vmin=0, vmax=0.1)
         plt.show()

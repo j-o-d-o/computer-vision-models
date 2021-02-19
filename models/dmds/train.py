@@ -1,6 +1,7 @@
 import tensorflow as tf
 gpus = tf.config.experimental.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(gpus[0], True)
+tf.config.optimizer.set_jit(True)
 
 import tensorflow_model_optimization as tfmot
 from tensorflow.keras import optimizers, models, metrics
@@ -10,6 +11,7 @@ from common.callbacks import SaveToStorage
 from common.utils import Logger, Config, set_up_tf_gpu
 from models.dmds import create_model, DmdsParams, ProcessImages
 from models.dmds.loss import DmdsLoss
+
 
 if __name__ == "__main__":
     Logger.init()
@@ -34,19 +36,19 @@ if __name__ == "__main__":
         "2018-10-12-07-57-23",
         "2018-10-18-15-04-21",
         "2018-10-17-14-35-33",
-        "2018-10-18-10-39-04",
-        "2018-10-30-13-45-14",
-        "2018-10-16-11-43-02",
-        "2018-07-27-11-39-31",
-        "2018-10-16-11-13-47",
-        "2018-07-24-14-31-18",
-        "2018-07-18-10-16-21",
-        "2018-07-16-15-37-46",
-        "2018-10-15-11-43-36",
-        "2018-10-16-07-40-57",
-        "2018-07-18-11-25-02",
-        "2018-10-17-15-38-01",
-        "2018-10-10-07-51-49",
+        # "2018-10-18-10-39-04",
+        # "2018-10-30-13-45-14",
+        # "2018-10-16-11-43-02",
+        # "2018-07-27-11-39-31",
+        # "2018-10-16-11-13-47",
+        # "2018-07-24-14-31-18",
+        # "2018-07-18-10-16-21",
+        # "2018-07-16-15-37-46",
+        # "2018-10-15-11-43-36",
+        # "2018-10-16-07-40-57",
+        # "2018-07-18-11-25-02",
+        # "2018-10-17-15-38-01",
+        # "2018-10-10-07-51-49",
         # These recs have cuts in them
         # "2018-08-17-09-45-58",
         # "2018-07-09-16-11-56",
@@ -96,12 +98,10 @@ if __name__ == "__main__":
     )
 
     # Create Model
-    opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    opt = optimizers.Adam(lr=0.001)
 
     if params.LOAD_PATH is not None:
-        with tfmot.quantization.keras.quantize_scope():
-            custom_objects = {"SemsegLoss": loss}
-            model: models.Model = models.load_model(params.LOAD_PATH, custom_objects=custom_objects, compile=False)
+        model: models.Model = models.load_model(params.LOAD_PATH, custom_objects=custom_objects, compile=False)
     else:
         model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH, params.LOAD_DEPTH_MODEL)
 

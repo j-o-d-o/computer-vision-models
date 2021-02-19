@@ -34,9 +34,8 @@ class DepthLoss(Loss):
 
         pygame.display.flip()
 
-    def call(self, y_true, y_pred):
-        y_pred = tf.squeeze(y_pred, axis=-1)
-
+    @staticmethod
+    def _calc_loss(y_true, y_pred):
         pos_mask = tf.cast(tf.greater(y_true, 1.0), tf.float32)
         n = tf.reduce_sum(pos_mask)
         # Point-wise depth
@@ -47,8 +46,12 @@ class DepthLoss(Loss):
         loss_mask = tf.math.abs(loss_mask)
         loss_val = tf.reduce_sum(loss_mask)
         loss_val = tf.cond(tf.greater(n, 0), lambda: loss_val / n, lambda: loss_val)
+        return loss_val
+
+    def call(self, y_true, y_pred):
+        y_pred = tf.squeeze(y_pred, axis=-1)
 
         self._show_depthmaps(y_pred, y_true)
         self.step_counter += 1
 
-        return loss_val
+        return self._calc_loss(y_true, y_pred)

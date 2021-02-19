@@ -49,8 +49,6 @@ class ProcessImages(IPreProcessor):
         # img_t0, img_t1 = self.augment(img_t0, img_t1)
         img_t0 = img_t0.astype(np.float32)
         img_t1 = img_t1.astype(np.float32)
-        # img_t0 = (2.0 * (img_t0 - 127.5)) / 255.0
-        # img_t1 = (2.0 * (img_t1 - 127.5)) / 255.0
 
         # Add ground_truth mask
         mask_t0 = cv2.imdecode(np.frombuffer(raw_data[0]["depth"], np.uint8), cv2.IMREAD_ANYDEPTH)
@@ -65,11 +63,12 @@ class ProcessImages(IPreProcessor):
         mask_t1 /= 255.0
         mask_t1 = np.expand_dims(mask_t1, axis=-1)
 
-        # currently hardcoded
+        # currently hardcoded for driving stereo dataset
+        intr_scale = (self.params.INPUT_WIDTH / 1758.0)
         intr = np.array([
-            [375.0,  0.0, 160.0],
-            [ 0.0, 375.0, 128.0],
-            [ 0.0,   0.0,   1.0]
+            [2063.0 * intr_scale,                 0.0, 978.0 * intr_scale],
+            [                0.0, 2063.0 * intr_scale, 584.0 * intr_scale],
+            [                0.0,                 0.0,                1.0]
         ], dtype=np.float32)
 
         input_data = [img_t0, img_t1, intr]
