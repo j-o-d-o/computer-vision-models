@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import BatchNormalization, ReLU, Conv2D, DepthwiseConv2D, Add, UpSampling2D, Concatenate, Conv2DTranspose
+from tensorflow.keras.layers import BatchNormalization, LayerNormalization, ReLU, Conv2D, DepthwiseConv2D, Add, UpSampling2D, Concatenate, Conv2DTranspose
 from tensorflow.keras.initializers import Constant, GlorotNormal
 
 
@@ -13,12 +13,12 @@ def bottle_neck_block(name_prefix: str, inputs: tf.Tensor, filters: int, expansi
     x = Conv2D(filters * expansion_factor, kernel_size=1, use_bias=False,
         padding='same', name=f"conv2d-0_bottelneck_{name_prefix}")(inputs)
     x = BatchNormalization(name=f"batchnorm-0_bottelneck_{name_prefix}")(x)
-    x = ReLU(6.)(x)
+    x = ReLU()(x)
     # Convolution
     x = DepthwiseConv2D(kernel_size=3, strides=stride, dilation_rate=dilation_rate,
         use_bias=False, padding='same', name=f"conv2d-1_bottelneck_{name_prefix}")(x)
     x = BatchNormalization(name=f"batchnorm-1_bottelneck_{name_prefix}")(x)
-    x = ReLU(6.)(x)
+    x = ReLU()(x)
     # Project
     x = Conv2D(filters, kernel_size=1, use_bias=False, padding='same', name=f"conv2d-2_bottelneck_{name_prefix}")(x)
     x = BatchNormalization(name=f"batchnorm-2_bottelneck_{name_prefix}")(x)

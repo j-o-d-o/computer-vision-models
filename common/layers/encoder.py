@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, BatchNormalization, ReLU, Concatenate
+from tensorflow.keras.layers import Conv2D, BatchNormalization, ReLU, Concatenate, LayerNormalization
 from common.layers import bottle_neck_block, upsample_block
 
 
@@ -7,10 +7,14 @@ def encoder(filters: int, input_tensor: tf.Tensor, output_scaled_down: bool = Fa
     x = input_tensor
     fms = []
 
-    x = Conv2D(filters, 5, padding="same", name=f"{namescope}initial_downsample", strides=(2, 2))(x)
-    x = BatchNormalization(name=f"{namescope}initial_batchnorm")(x)
-    x = ReLU(6., name=f"{namescope}initial_acitvation")(x)
+    # x = Conv2D(filters, 5, padding="same", name=f"{namescope}initial_downsample", strides=(2, 2))(x)
+    # x = BatchNormalization(name=f"{namescope}initial_batchnorm")(x)
+    # x = ReLU(6., name=f"{namescope}initial_acitvation")(x)
+    # fms.append(x)
+
+    x = bottle_neck_block(f"{namescope}feat_extract_m0.5", x, filters, downsample = True)
     fms.append(x)
+    filters = int(filters * 2)
 
     x = bottle_neck_block(f"{namescope}feat_extract_0", x, filters)
     x = bottle_neck_block(f"{namescope}feat_extract_1", x, filters, downsample = True)
