@@ -20,9 +20,9 @@ You will need:
 
 ```bash
 # Run script to convert Kitti data to od_spec and upload to MongoDB
-kitti_od.py --image_path /path/to/data_object_image_2/training/image_2 
-            --label_path /path/to/data_object_label_2/training/label_2
-            --calib_path /path/to/data_object_calib/training/calib
+kitti.py --image_path /path/to/data_object_image_2/training/image_2 
+         --label_path /path/to/data_object_label_2/training/label_2
+         --calib_path /path/to/data_object_calib/training/calib
 ```
 
 ## NuImages - 2D Object Detection
@@ -52,8 +52,8 @@ nuimages-v1.0-all
 ```
 ```bash
 # Run script to convert NuImage data to od_spec and upload to MongoDB
-nuimage_od.py --path /path/to/nuimages-v1.0-all 
-              --version v1.0-train
+nuimage.py --path /path/to/nuimages-v1.0-all 
+           --version v1.0-train
 ```
 
 ## NuScenes - 2D and 3D Object Tracking
@@ -63,7 +63,7 @@ Download: https://www.nuscenes.org/download (You will need to register and login
 Afterwards you will have to move everything into a folder named "samples", same as with the nuImages folder structure.
 ```bash
 # Run script to convert NuScenes data to od_spec and upload to MongoDB
-nuscenes_od.py --path /path/to/nuscenes-v1.0-all
+nuscenes.py --path /path/to/nuscenes-v1.0-all
 ```
 
 # DrivingStereo - Depthmap
@@ -72,5 +72,5 @@ Download: https://drivingstereo-dataset.github.io/
 - Training data - Depth Maps
 Folder structure should have all scene folders (e.g. 2018-10-19-09-30-39) of depth maps in one folder and the same scene folders for the left images in another folder.
 ```bash
-driving_stereo_depth.py --depth_maps /path/to/depth_maps --images /path/to/images
+driving_stereo.py --depth_maps /path/to/depth_maps --images /path/to/images
 ```
