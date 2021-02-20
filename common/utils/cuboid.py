@@ -6,13 +6,9 @@ from typing import List
 def bbox_from_cuboid(cuboid: List[float]) -> List[float]:
     """
     Convert a image cuboid to a bounding box
-
-    Args:
-        cuboid (List[float]): With points in x, y, 1d list [back_left_top, back_left_bottom, back_right_bottom_2d,
-            back_right_top_2d, front_left_top_2d, front_left_bottom_2d, front_right_bottom_2d, front_right_top_2d]
-
-    Returns:
-        List[float]: List of bounding box [top_left_x, top_left_y, width, height]
+    :param cuboid (List[float]): With points in x, y, 1d list [back_left_top, back_left_bottom, back_right_bottom_2d,
+                back_right_top_2d, front_left_top_2d, front_left_bottom_2d, front_right_bottom_2d, front_right_top_2d]
+    :return: List[float]: List of bounding box [top_left_x, top_left_y, width, height]
     """
     np_cuboid = np.array(cuboid)
     np_cuboid = np.reshape(np_cuboid, (-1, 2))
@@ -32,21 +28,16 @@ def calc_cuboid_from_3d(
     ) -> List[float]:
     """
     Calculate the 3D bounding box in an image from the 3D object information
-
-    Args:
-        center_ground_3d (np.ndarray): 3D point of the center ground coordinate of the obj in cam coordinate system
-        cam_mat (np.ndarray): Camera matrix that will convert 3D points (camera coordinate system) to image
-        obj_rot_mat (np.ndarray): Rotation matrix of the object
-        width (float): Width of object
-        height (float): Height of object
-        length (float): Length of object
-        debug_img (np.ndarray, optional): If a cv2 image is provided, the 3D box will be drawn. Defaults to None.
-
-    Returns:
-        List(float): Cuboid with points in x, y, 1d list [back_left_top, back_left_bottom, back_right_bottom_2d,
-            back_right_top_2d, front_left_top_2d, front_left_bottom_2d, front_right_bottom_2d, front_right_top_2d]
+    :param center_ground_3d (np.ndarray): 3D point of the center ground coordinate of the obj in cam coordinate system
+    :param cam_mat (np.ndarray): Camera matrix that will convert 3D points (camera coordinate system) to image
+    :param obj_rot_mat (np.ndarray): Rotation matrix of the object
+    :param width (float): Width of object
+    :param height (float): Height of object
+    :param length (float): Length of object
+    :param debug_img (np.ndarray, optional): If a cv2 image is provided, the 3D box will be drawn. Defaults to None.
+    :return: List[float]: Cuboid with points in x, y, 1d list [back_left_top, back_left_bottom, back_right_bottom_2d,
+        back_right_top_2d, front_left_top_2d, front_left_bottom_2d, front_right_bottom_2d, front_right_top_2d]
     """
-
     pos_2d = np.matmul(cam_mat, center_ground_3d)
     pos_2d /= pos_2d[2]
 

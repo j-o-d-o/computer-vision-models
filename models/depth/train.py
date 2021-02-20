@@ -1,6 +1,5 @@
 import tensorflow as tf
-gpus = tf.config.experimental.list_physical_devices('GPU')
-tf.config.experimental.set_memory_growth(gpus[0], True)
+tf.config.experimental.set_memory_growth(tf.config.experimental.list_physical_devices('GPU'), True)
 tf.config.optimizer.set_jit(True)
 
 import tensorflow_model_optimization as tfmot
@@ -8,7 +7,7 @@ from tensorflow.keras import optimizers, models, metrics
 from datetime import datetime
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.callbacks import SaveToStorage
-from common.utils import Logger, Config, set_up_tf_gpu
+from common.utils import Logger, Config
 from models.depth import create_model, Params, ProcessImages
 from models.depth.loss import DepthLoss
 

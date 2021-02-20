@@ -5,20 +5,18 @@ dependencies:
   - pip:
     - tensorflow-gpu
     - tensorflow-model-optimization
-    - tensorflow_graphics
     - pytest
     - matplotlib
     - pydot
     - numpy
     - pymongo
-    - opencv-python==4.4.* # latest version has some issue with imshow... lets figure this out in another lifetime
+    - opencv-python==4.4.*
     - nuscenes-devkit
     - tqdm
     - pygame
     - albumentations
-    - nvidia-ml-py3
     - numba
-    - redis # to get the python interface for redis
+    - import redis
     # tflite-runtime and py-coral for linux
     - https://github.com/google-coral/pycoral/releases/download/release-frogfish/tflite_runtime-2.5.0-cp37-cp37m-linux_x86_64.whl
     - https://github.com/google-coral/pycoral/releases/download/release-frogfish/pycoral-1.0.0-cp37-cp37m-linux_x86_64.whl

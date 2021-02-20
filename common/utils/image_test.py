@@ -16,5 +16,3 @@ class TestImage:
         resized_img, roi = resize_img(img, goal_width, goal_height, offset_bottom)
         assert resized_img.shape[0] == goal_height
         assert resized_img.shape[1] == goal_width
-
-    

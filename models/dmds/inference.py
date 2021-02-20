@@ -1,5 +1,7 @@
-import tensorflow_model_optimization as tfmot
 import tensorflow as tf
+tf.config.experimental.set_memory_growth(tf.config.experimental.list_physical_devices('GPU'), True)
+
+import tensorflow_model_optimization as tfmot
 import tflite_runtime.interpreter as tflite
 from pycoral.utils import edgetpu
 import numpy as np
@@ -10,7 +12,7 @@ import matplotlib.pyplot as plt
 import argparse
 import time
 from pymongo import MongoClient
-from common.utils import resize_img, set_up_tf_gpu
+from common.utils import resize_img
 from models.dmds.model import DmdsModel, ScaleConstraint
 
 
@@ -25,8 +27,6 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", type=str, default="/path/to/tf_model_x/model_quant_edgetpu.tflite", help="Path to a tensorflow model folder")
     parser.add_argument("--use_edge_tpu", action="store_true", help="EdgeTpu should be used for inference")
     args = parser.parse_args()
-
-    set_up_tf_gpu(tf)
 
     # For debugging force a value here
     args.use_edge_tpu = False
