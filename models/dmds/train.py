@@ -1,5 +1,5 @@
 import tensorflow as tf
-tf.config.experimental.set_memory_growth(tf.config.experimental.list_physical_devices('GPU'), True)
+tf.config.experimental.set_memory_growth(tf.config.experimental.list_physical_devices('GPU')[0], True)
 tf.config.optimizer.set_jit(True)
 
 import tensorflow_model_optimization as tfmot
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     )
 
     # Create Model
-    opt = optimizers.Adam(lr=0.002)
+    opt = optimizers.Adam(lr=0.0002)
 
     if params.LOAD_PATH is not None:
         model: models.Model = models.load_model(params.LOAD_PATH, custom_objects=custom_objects, compile=False)

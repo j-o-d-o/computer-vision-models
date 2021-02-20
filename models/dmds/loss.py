@@ -21,7 +21,7 @@ class DmdsLoss:
             # "depth_var": 0,
             "mm_sparsity": 0,
             "mm_smooth": 0,
-            "depth": 0,
+            # "depth": 0,
             "rgb": 0,
             "ssim": 0,
             "rot": 0,
@@ -38,6 +38,12 @@ class DmdsLoss:
 
     def expand_dims_twice(self, x, dim):
         return tf.expand_dims(tf.expand_dims(x, dim), dim)
+
+    def combine(self, rot_mat1, trans_vec1, rot_mat2, trans_vec2):
+        r2r1 = tf.matmul(rot_mat2, rot_mat1)
+        r2t1 = tf.matmul(rot_mat2, tf.expand_dims(trans_vec1, -1))
+        r2t1 = tf.squeeze(r2t1, axis=-1)
+        return r2r1, r2t1 + trans_vec2
 
     def construct_rotation_matrix(self, rot):
         sin_angles = tf.sin(rot)
@@ -99,14 +105,15 @@ class DmdsLoss:
         x1_resampled = tf.squeeze(x1_resampled, axis=-1)
 
         mask = tf.stop_gradient(mask)
-        frame0_closer_to_camera = tf.cast(tf.logical_and(mask, tf.less_equal(z, x1_resampled)), tf.float32)
+        # frame0_closer_to_camera = tf.cast(tf.logical_and(mask, tf.less_equal(z, x1_resampled)), tf.float32)
+        frame0_closer_to_camera = tf.cast(mask, tf.float32)
         n = tf.reduce_sum(frame0_closer_to_camera)
         depth_l1_diff = tf.abs(x1_resampled - z)
         depth_error = tf.reduce_mean(tf.math.multiply_no_nan(depth_l1_diff, frame0_closer_to_camera))
 
         rgb_l1_diff = tf.abs(img1_resampled - img0)
         rgb_error = tf.reduce_sum(tf.math.multiply_no_nan(rgb_l1_diff, tf.expand_dims(frame0_closer_to_camera, -1)))
-        rgb_error = tf.cond(tf.greater(n, 0), lambda: rgb_error / n, lambda: 10)
+        rgb_error = tf.cond(tf.greater(n, 0), lambda: rgb_error / n, lambda: 2550.0)
 
         frame0_closer_to_camera_3c = tf.stack([frame0_closer_to_camera] * 3, axis=-1)
         self.resampled_img1 = tf.math.multiply_no_nan(img1_resampled, frame0_closer_to_camera_3c)
@@ -162,50 +169,62 @@ class DmdsLoss:
         self.loss_vals["depth"] = self.params.depth_cons * depth_error
         self.loss_vals["ssim"] = self.params.ssim_cons * ssim_error
 
-    def calc_motion_field_consistency_loss(self, T, T_inv, R, R_inv, mask, px, py):
-        R_unit = tf.matmul(R, R_inv)
-        identity = tf.eye(3, batch_shape=tf.shape(R_unit)[:-2])
-        R_error = tf.reduce_mean(tf.square(R_unit - identity), axis=(1, 2))
-        rot1_scale = tf.reduce_mean(tf.square(R - identity), axis=(1, 2))
-        rot2_scale = tf.reduce_mean(tf.square(R_inv - identity), axis=(1, 2))
-        R_error /= (1e-24 + rot1_scale + rot2_scale)
-        R_error = tf.reduce_mean(R_error)
-        self.loss_vals["rot"] = R_error * self.params.rot_cyc
-
-        T_inv_resampled = resampler.resampler_with_unstacked_warp(T_inv, tf.stop_gradient(px), tf.stop_gradient(py))
+    def calc_motion_field_consistency_loss(self, T, T_inv, rot, rot_inv, mask, px, py):
+        T_inv_resampled = resampler.resampler_with_unstacked_warp(T_inv, tf.stop_gradient(px), tf.stop_gradient(py), safe=False)
         
-        rot_field_shape = tf.shape(tf.stack([T]*3, axis=-1)) # stupid way to get the correct shape for the matrix filed for the rotation...
-        R_inv_field = tf.broadcast_to(self.expand_dims_twice(R_inv, -3), rot_field_shape)
-        r2t1 = tf.matmul(R_inv_field, tf.expand_dims(T, -1))
-        r2t1 = tf.squeeze(r2t1, axis=-1)
-        trans_zero = r2t1 + T_inv_resampled
+        rot_field = tf.broadcast_to(self.expand_dims_twice(rot, -2), tf.shape(T))
+        rot_field_inv = tf.broadcast_to(self.expand_dims_twice(rot_inv, -2), tf.shape(T_inv))
+        R_mat = self.construct_rotation_matrix(rot_field)
+        R_mat_inv = self.construct_rotation_matrix(rot_field_inv)
+
+        rot_unit, trans_zero = self.combine(R_mat_inv, T_inv_resampled, R_mat, T)
+        eye = tf.eye(3, batch_shape=tf.shape(rot_unit)[:-2])
+
+        rot_error = tf.reduce_mean(tf.square(rot_unit - eye), axis=(3, 4))
+        rot1_scale = tf.reduce_mean(tf.square(R_mat - eye), axis=(3, 4))
+        rot2_scale = tf.reduce_mean(tf.square(R_mat_inv - eye), axis=(3, 4))
+        rot_error /= (1e-10 + rot1_scale + rot2_scale)
+        rotation_error = tf.reduce_mean(rot_error)
+        self.loss_vals["rot"] = rotation_error * self.params.rot_cyc
 
         t = tf.math.multiply_no_nan(mask, self.norm(trans_zero))
-
         translation_error = tf.reduce_mean(t / (1e-10 + self.norm(T) + self.norm(T_inv_resampled)))
         self.loss_vals["tran"] = translation_error * self.params.tran_cyc
 
     def calc(self, img0, img1, depth0, depth1, obj_tran, obj_tran_inv, bg_tran, bg_tran_inv, rot, rot_inv, K, gt_x0, gt_x1, step_number):
-        obj_tran *= (step_number / 4000.0)
+        obj_tran *= tf.clip_by_value(((step_number - 5000.0) / 10000.0), 0.0, 1.0)
 
-        depth0 += 0.02
-        depth1 += 0.02
+        np_rot = rot.numpy()
+        np_obj_tran = obj_tran.numpy()
+        np_bg_tran = bg_tran.numpy()
 
-        # np_rot = rot.numpy()
-        # np_obj_tran = obj_tran.numpy()
-        # np_bg_tran = bg_tran.numpy()
+        bg_abs = tf.abs(bg_tran)
+        bg_mask = tf.cast(tf.greater(bg_abs, 5.0), tf.float32)
+        n_bg = tf.reduce_sum(bg_mask)
+        bg_loss = tf.reduce_sum(bg_mask * (bg_abs - 5.0))
+        self.loss_vals["bg_loss"] = tf.cond(tf.greater(n_bg, 0), lambda: bg_loss / n_bg, lambda: 0)
 
-        # resize since we output a smaller resudial_translation map
-        # rgb_shape = rgb.shape[1:3]
-        # residual_translation = tf.image.resize(residual_translation, rgb_shape,  method='nearest')
+        rot_abs = tf.abs(rot)
+        rot_mask = tf.cast(tf.greater(rot_abs, 0.3), tf.float32)
+        n_rot = tf.reduce_sum(rot_mask)
+        rot_loss = tf.reduce_sum(rot_mask * (rot_abs - 0.3))
+        self.loss_vals["rot_loss"] = tf.cond(tf.greater(n_rot, 0), lambda: rot_loss / n_rot, lambda: 0)
 
         # Data generation
         # -------------------------------
-        bg_tran = self.expand_dims_twice(bg_tran, -2)
-        bg_tran_inv = self.expand_dims_twice(bg_tran_inv, -2)
+        # resize since we output a smaller resudial_translation map
+        obj_tran = tf.image.resize(obj_tran, img0.shape[1:3], method='nearest')
+        obj_tran_inv = tf.image.resize(obj_tran_inv, img0.shape[1:3], method='nearest')
+
+        # to avoid division by zero (final depth map layer has relu activation)
+        depth0 += 0.02
+        depth1 += 0.02
+
         T = obj_tran + bg_tran
         T_inv = obj_tran_inv + bg_tran_inv
 
+        rot = tf.squeeze(rot)
+        rot_inv = tf.squeeze(rot_inv)
         R = self.construct_rotation_matrix(rot)
         R_inv = self.construct_rotation_matrix(rot_inv)
 
@@ -217,11 +236,11 @@ class DmdsLoss:
         # depth_var = tf.reduce_mean(tf.square(depth1 / mean_depth - 1.0))
         # self.loss_vals["depth_var"] = tf.math.reciprocal_no_nan(depth_var) * self.params.var_depth
 
-        # disp = tf.math.reciprocal_no_nan(depth1)
-        # mean_disp = tf.reduce_mean(disp, axis=[1, 2, 3], keepdims=True)
-        # self.loss_vals["depth_smooth"] = regularizers.joint_bilateral_smoothing(disp * tf.math.reciprocal_no_nan(mean_disp), img1) * self.params.depth_smoothing
+        disp = tf.math.reciprocal_no_nan(depth1)
+        mean_disp = tf.reduce_mean(disp, axis=[1, 2, 3], keepdims=True)
+        self.loss_vals["depth_smooth"] = regularizers.joint_bilateral_smoothing(disp * tf.math.reciprocal_no_nan(mean_disp), img1) * self.params.depth_smoothing
 
-        self.loss_vals["depth_abs"] = DepthLoss._calc_loss(gt_x1, depth1)
+        self.loss_vals["depth_abs"] = DepthLoss._calc_loss(tf.concat([gt_x0, gt_x1], axis=0), depth0)
 
         # Motionmap regulizers
         # -------------------------------
@@ -232,9 +251,10 @@ class DmdsLoss:
         # Cyclic and RGB Loss
         # -------------------------------
         px, py, z, mask = self.warp_it(tf.squeeze(depth0, axis=-1), T, R, K, K_inv)
+        depth1 = tf.stop_gradient(depth1)
 
         self.calc_warp_error(img0, img1, depth1, px, py, z, mask)
-        self.calc_motion_field_consistency_loss(T, T_inv, R, R_inv, self.warp_mask, px, py)
+        self.calc_motion_field_consistency_loss(T, T_inv, rot, rot_inv, self.warp_mask, px, py)
 
         result = 0
         for key in self.loss_vals.keys():
@@ -294,15 +314,15 @@ def test():
         mm_inv = np.zeros((*img0.shape[:-1], 3), dtype=np.float32)
         mm_inv[:, 23:85, 172:320, :] = [0.0, 0.0, 0.0]
 
-        rot = np.zeros((batch_size, 3), dtype=np.float32)
-        rot[:,] = np.array([-0.1, 0.0, 0.1])
-        rot_inv = np.zeros((batch_size, 3), dtype=np.float32)
-        rot_inv[:,] = np.array([0.1, 0.0, -0.1])
+        rot = np.zeros((batch_size, 1, 1, 3), dtype=np.float32)
+        rot[:, 0, 0, :] = np.array([-0.1, 0.0, 0.1])
+        rot_inv = np.zeros((batch_size, 1, 1, 3), dtype=np.float32)
+        rot_inv[:, 0, 0, :] = np.array([0.1, 0.0, -0.1])
 
-        tran = np.zeros((batch_size, 3), dtype=np.float32)
-        tran[:,] = np.array([0.0, 0.0, 10]) # [left,right | up,down | forward,backward]
-        tran_inv = np.zeros((batch_size, 3), dtype=np.float32)
-        tran_inv[:,] = np.array([0.0, 0.0, -10])
+        tran = np.zeros((batch_size, 1, 1, 3), dtype=np.float32)
+        tran[:, 0, 0, :] = np.array([0.0, 0.0, 10]) # [left,right | up,down | forward,backward]
+        tran_inv = np.zeros((batch_size, 1, 1, 3), dtype=np.float32)
+        tran_inv[:, 0, 0, :] = np.array([0.0, 0.0, -10])
 
         loss.calc(img1, img0, x1, x0, mm_inv, mm, tran_inv, tran, rot_inv, rot, intr, x0, x1, 0)
 

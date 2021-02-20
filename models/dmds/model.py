@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, ReLU, Concatenate, Flatten, Dense, Dropout, Lambda, LayerNormalization
+from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, ReLU, Concatenate, Flatten, Dense, Dropout, Lambda, AveragePooling2D
 from tensorflow.keras.models import Model
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras import initializers
@@ -53,29 +53,27 @@ class DmdsModel(Model):
         input_data, gt, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
 
         with backprop.GradientTape() as tape:
-            y_pred = self((input_data[0], input_data[1], input_data[2]), training=True)
-            y_pred_inv = self((input_data[1], input_data[0], input_data[2]), training=True)
+            combined_input = (
+                tf.concat([input_data[0], input_data[1]], axis=0),
+                tf.concat([input_data[1], input_data[0]], axis=0),
+                tf.concat([input_data[2], input_data[2]], axis=0)
+            )
+            y_pred = self(combined_input, training=True)
 
-            depth1, obj_tran, bg_tran, rot, _ = y_pred
-            depth0, obj_tran_inv, bg_tran_inv, rot_inv, _ = y_pred_inv
+            depth0, depth1, obj_tran, bg_tran, rot, _ = y_pred
+
+            obj_tran_inv = tf.concat(tf.split(obj_tran, 2, axis=0)[::-1], axis=0)
+            bg_tran_inv = tf.concat(tf.split(bg_tran, 2, axis=0)[::-1], axis=0)
+            rot_inv = tf.concat(tf.split(rot, 2, axis=0)[::-1], axis=0)
 
             loss_val = self.custom_loss.calc(
-                input_data[0], input_data[1],
+                combined_input[0], combined_input[1],
                 depth0, depth1,
                 obj_tran, obj_tran_inv,
                 bg_tran, bg_tran_inv,
-                rot, rot_inv, input_data[2],
+                rot, rot_inv, combined_input[2],
                 gt[0], gt[1], self.train_step_counter)
             loss_dict = self.custom_loss.loss_vals.copy()
-            loss_val += self.custom_loss.calc(
-                input_data[1], input_data[0],
-                depth1, depth0,
-                obj_tran_inv, obj_tran,
-                bg_tran_inv, bg_tran,
-                rot_inv, rot, input_data[2],
-                gt[0], gt[1], self.train_step_counter)
-            for key in loss_dict.keys():
-                loss_dict[key] += self.custom_loss.loss_vals[key]
 
         self.optimizer.minimize(loss_val, self.trainable_variables, tape=tape)
 
@@ -118,23 +116,27 @@ class DmdsModel(Model):
         data = data_adapter.expand_1d(data)
         input_data, gt, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
 
-        y_pred = self((input_data[0], input_data[1], input_data[2]), training=True)
-        y_pred_inv = self((input_data[1], input_data[0], input_data[2]), training=True)
+        combined_input = (
+            tf.concat([input_data[0], input_data[1]], axis=0),
+            tf.concat([input_data[1], input_data[0]], axis=0),
+            tf.concat([input_data[2], input_data[2]], axis=0)
+        )
+        y_pred = self(combined_input, training=True)
 
-        depth1, obj_tran, bg_tran, rot, _ = y_pred
-        depth0, obj_tran_inv, bg_tran_inv, rot_inv, _ = y_pred_inv
+        depth0, depth1, obj_tran, bg_tran, rot, _ = y_pred
 
         loss_val = self.custom_loss.calc(
-            input_data[0], input_data[1],
+            combined_input[0], combined_input[1],
             depth0, depth1,
             obj_tran, obj_tran_inv,
             bg_tran, bg_tran_inv,
-            rot, rot_inv, input_data[2],
+            rot, rot_inv, combined_input[2],
             gt[0], gt[1], self.train_step_counter)
-        loss_dict = self.custom_loss.loss_vals
+        loss_dict = self.custom_loss.loss_vals.copy()
 
         loss_dict["sum"] = loss_val
         return loss_dict
+
 
 class ScaleConstraint(tf.keras.constraints.Constraint):
     """The weight tensors will be constrained to not fall below constraint_minimum, this is used for the scale variables in DMLearner/motion_field_net."""
@@ -151,80 +153,75 @@ class ScaleConstraint(tf.keras.constraints.Constraint):
 
 def create_model(input_height: int, input_width: int, depth_model_path: str = None) -> tf.keras.Model:
     intr = Input(shape=(3, 3))
+    
     input_t0 = Input(shape=(input_height, input_width, 3))
     rescaled_input_t0 = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(input_t0)
 
     input_t1 = Input(shape=(input_height, input_width, 3))
     rescaled_input_t1 = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(input_t1)
 
-    concat_input = Concatenate()([rescaled_input_t0, rescaled_input_t1])
+    # Depth Model
+    # ------------------------------
+    DepthModel = create_depth_model(input_height, input_width, depth_model_path)
+    depth_t0 = DepthModel(input_t0)
+    depth_t1 = DepthModel(input_t1)
 
-    x, fms = encoder(16, concat_input, namescope="encoder_dmds/")
+    # Motion Model
+    # ------------------------------
+    inp_mm_t0 = Concatenate()([rescaled_input_t0, depth_t0])
+    inp_mm_t1 = Concatenate()([rescaled_input_t1, depth_t1])
+    mm_inp = Concatenate()([inp_mm_t0, inp_mm_t1])
 
-    # Depthmap
-    # =======================================
-    depth = Conv2D(16, (3, 3), padding="same", use_bias=False, name="depth_head")(x)
-    depth = BatchNormalization()(depth)
-    depth = ReLU()(depth)
-    depth = Conv2D(1, kernel_size=1, padding="same", activation="relu", bias_initializer=initializers.Constant(0.2), name="depth_map")(depth)
+    mm_conv1 = Conv2D(8, [3, 3], strides=2, padding="same", name='mm/conv1')(mm_inp)
+    mm_conv1 = BatchNormalization()(mm_conv1)
+    mm_conv1 = ReLU()(mm_conv1)
+    mm_conv2 = Conv2D(16, [3, 3], strides=2, padding="same", name='mm/conv2')(mm_conv1)
+    mm_conv2 = BatchNormalization()(mm_conv2)
+    mm_conv2 = ReLU()(mm_conv2)
+    mm_conv3 = Conv2D(32, [3, 3], strides=2, padding="same", name='mm/conv3')(mm_conv2)
+    mm_conv3 = BatchNormalization()(mm_conv3)
+    mm_conv3 = ReLU()(mm_conv3)
+    mm_conv4 = Conv2D(64, [3, 3], strides=2, padding="same", name='mm/conv4')(mm_conv3)
+    mm_conv4 = BatchNormalization()(mm_conv4)
+    mm_conv4 = ReLU()(mm_conv4)
+    mm_conv5 = Conv2D(128, [3, 3], strides=2, padding="same", name='mm/conv5')(mm_conv4)
+    mm_conv5 = BatchNormalization()(mm_conv5)
+    mm_conv5 = ReLU()(mm_conv5)
+    mm_conv6 = Conv2D(196, [3, 3], strides=2, padding="same", name='mm/conv6')(mm_conv5)
+    mm_conv6 = BatchNormalization()(mm_conv6)
+    mm_conv6 = ReLU()(mm_conv6)
 
-    # Motion Ego
-    # =======================================
-    ego_motion = Conv2D(64, kernel_size=3, strides=2, use_bias=False)(fms[-1])
-    ego_motion = BatchNormalization()(ego_motion)
-    ego_motion = ReLU(6.)(ego_motion)
-    ego_motion = Conv2D(64, kernel_size=3, strides=2, use_bias=False)(ego_motion)
-    ego_motion = BatchNormalization()(ego_motion)
-    ego_motion = ReLU(6.)(ego_motion)
-    ego_motion = Flatten()(ego_motion)
-    ego_motion = Dropout(0.3)(ego_motion)
+    bottleneck = AveragePooling2D([mm_conv6.shape[1], mm_conv6.shape[2]])(mm_conv6)
+    background_translation = Conv2D(3, [1, 1], strides=1, activation=None, bias_initializer=None, name='mm/background_translation')(bottleneck)
+    background_rotation = Conv2D(3, [1, 1], strides=1, activation=None, bias_initializer=None, name='mm/background_rotation')(bottleneck)
 
-    rot = Dense(32, use_bias=False)(ego_motion)
-    rot = BatchNormalization()(rot)
-    rot = ReLU(6.)(rot)
-    rot = Dropout(0.2)(rot)
-    rot = Dense(16, use_bias=False)(rot)
-    rot = BatchNormalization()(rot)
-    rot = ReLU(6.)(rot)
-    rot = Dropout(0.1)(rot)
-    rot = Dense(3, activation=None)(rot)
+    resudial_translation = upsample_block("mm/up0_", mm_conv6, mm_conv5, 128)
+    resudial_translation = upsample_block("mm/up1_", resudial_translation, mm_conv4, 64)
+    resudial_translation = upsample_block("mm/up2_", resudial_translation, mm_conv3, 32)
+    resudial_translation = upsample_block("mm/up3_", resudial_translation, mm_conv2, 16)
+    resudial_translation = upsample_block("mm/up4_", resudial_translation, mm_conv1, 8)
+    resudial_translation = Conv2D(3, [1, 1], strides=1, name='mm/resudial_translation')(resudial_translation)
 
-    tran = Dense(32, use_bias=False)(ego_motion)
-    tran = BatchNormalization()(tran)
-    tran = ReLU(6.)(tran)
-    tran = Dropout(0.2)(tran)
-    tran = Dense(16, use_bias=False)(tran)
-    tran = BatchNormalization()(tran)
-    tran = ReLU(6.)(tran)
-    tran = Dropout(0.1)(tran)
-    tran = Dense(3)(tran)
+    scaling = Conv2D(1, (1, 1), use_bias=False, kernel_constraint=ScaleConstraint(0.001), name='mm/scaling')
+    rot_scaling = Conv2D(1, (1, 1), use_bias=False, kernel_constraint=ScaleConstraint(0.001), name='mm/rot_scaling')
 
-    # Motion Object
-    # =======================================
-    mm = Conv2D(16, (3, 3), padding="same", name="motion_map_conv2d", use_bias=False)(x)
-    mm = BatchNormalization()(mm)
-    mm = ReLU()(mm)
-    mm = Conv2D(3, kernel_size=1, padding="same", name="motion_map")(mm)
+    resudial_translation = Concatenate(axis=-1, name='mm/scaled_resudial_translation')([
+        scaling(tf.expand_dims(resudial_translation[:, :, :, 0], axis=-1)),
+        scaling(tf.expand_dims(resudial_translation[:, :, :, 1], axis=-1)),
+        scaling(tf.expand_dims(resudial_translation[:, :, :, 2], axis=-1))])
 
-    mm_scaling = Conv2D(1, (1, 1), use_bias=False, kernel_constraint=ScaleConstraint(0.01), name='motion_field_net/mm_scaling')
-    mm = Concatenate(axis=-1, name='motion_field_net/scaled_mm')([
-        mm_scaling(tf.expand_dims(mm[:, :, :, 0], axis=-1)),
-        mm_scaling(tf.expand_dims(mm[:, :, :, 1], axis=-1)),
-        mm_scaling(tf.expand_dims(mm[:, :, :, 2], axis=-1))])
+    background_translation = Concatenate(axis=-1, name='mm/scaled_background_translation')([
+        scaling(tf.expand_dims(background_translation[:, :, :, 0], axis=-1)),
+        scaling(tf.expand_dims(background_translation[:, :, :, 1], axis=-1)),
+        scaling(tf.expand_dims(background_translation[:, :, :, 2], axis=-1))])
 
-    rot_scaling = Dense(1, use_bias=False, kernel_constraint=ScaleConstraint(), kernel_initializer=initializers.constant(0.01), name='motion_field_net/scaling_rot')
-    rot = Concatenate(axis=-1, name='motion_field_net/scaled_rotation')([
-        rot_scaling(tf.expand_dims(rot[:, 0], axis=-1)),
-        rot_scaling(tf.expand_dims(rot[:, 1], axis=-1)),
-        rot_scaling(tf.expand_dims(rot[:, 2], axis=-1))])
-    
-    tran_scaling = Dense(1, use_bias=False, kernel_constraint=ScaleConstraint(), kernel_initializer=initializers.constant(0.01), name='motion_field_net/scaling_tran')
-    tran = Concatenate(axis=-1, name='motion_field_net/scaled_translation')([
-        tran_scaling(tf.expand_dims(tran[:, 0], axis=-1)),
-        tran_scaling(tf.expand_dims(tran[:, 1], axis=-1)),
-        tran_scaling(tf.expand_dims(tran[:, 2], axis=-1))])
+    background_rotation = Concatenate(axis=-1, name='mm/scaled_background_rotation')([
+        rot_scaling(tf.expand_dims(background_rotation[:, :, :, 0], axis=-1)),
+        rot_scaling(tf.expand_dims(background_rotation[:, :, :, 1], axis=-1)),
+        rot_scaling(tf.expand_dims(background_rotation[:, :, :, 2], axis=-1))])
 
-    return DmdsModel(inputs=[input_t0, input_t1, intr], outputs=[depth, mm, tran, rot, intr])
+    return DmdsModel(inputs=[input_t0, input_t1, intr],
+        outputs=[depth_t0, depth_t1, resudial_translation, background_translation, background_rotation, intr])
 
 
 if __name__ == "__main__":

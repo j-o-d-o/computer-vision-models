@@ -1,10 +1,10 @@
 class DmdsParams:
     def __init__(self):
         # Training
-        self.BATCH_SIZE = 3
+        self.BATCH_SIZE = 2
         self.PLANED_EPOCHS = 90
         self.LOAD_PATH = None
-        self.LOAD_DEPTH_MODEL = "/home/computer-vision-models/trained_models/depth_ds_2021-02-19-123248/tf_model_0/keras.h5"
+        self.LOAD_DEPTH_MODEL = "/home/computer-vision-models/trained_models/depth_ds_2021-02-20-095528/tf_model_1/keras.h5"
 
         # Input
         self.INPUT_WIDTH = 640 # width of input img in [px]
@@ -13,12 +13,12 @@ class DmdsParams:
 
         # Loss weights
         self.rgb_cons = (1.5 / 255.0)
-        self.ssim_cons = 1.0
+        self.ssim_cons = 2.5
         self.depth_cons = 0.0
-        self.supervise_depth = 0.5
-        self.depth_smoothing = 0.001
+        self.supervise_depth = 1.0
+        self.depth_smoothing = 0.002
         self.var_depth = 1e-6
-        self.rot_cyc = 2.0e-3
-        self.tran_cyc = 2.0e-2
+        self.rot_cyc = 5.0e-3
+        self.tran_cyc = 5.0e-2
         self.mot_smoothing = 1e-4
         self.mot_drift = 1e-6
