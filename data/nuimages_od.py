@@ -5,11 +5,13 @@ import math
 import os
 from dataclasses import dataclass
 from tqdm import tqdm
-from pymongo import MongoClient
 from nuimages import NuImages
+from pymongo import MongoClient
 from nuscenes.utils.data_classes import Box
-from data.od_spec import Object, Entry, OD_CLASS_MAPPING
-from common.utils import calc_cuboid_from_3d, bbox_from_cuboid, wrap_angle
+from data.label_spec import Object, Entry, OD_CLASS_MAPPING
+from common.utils import calc_cuboid_from_3d, bbox_from_cuboid, wrap_angle, resize_img
+import matplotlib.pyplot as plt
+
 
 # Mapping nuscenes classes to od_spec classes
 # TODO: bicycle and motorcycle should be merged with closes ped label
@@ -44,10 +46,12 @@ class Quaternion:
     z: float
 
 def main(args):
+    args.path = "/home/training_data/nuscenes/nuimages-v1.0-all"
+    args.resize = [640, 258, 0]
+
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]
 
-    args.path = "/home/jo/training_data/nuscenes/nuimages-v1.0-all"
     nuim = NuImages(version="v1.0-test", dataroot=args.path, lazy=True, verbose=False)
 
     for sample in tqdm(nuim.sample):
@@ -63,6 +67,8 @@ def main(args):
         img_path = args.path  + "/" + sample_data["filename"]
         if os.path.exists(img_path):
             img = cv2.imread(img_path)
+            if args.resize is not None:
+                img, roi = resize_img(img, args.resize[0], args.resize[1], args.resize[2])
             img_bytes = cv2.imencode('.jpeg', img)[1].tobytes()
             content_type = "image/jpeg"
         else:
@@ -106,8 +112,18 @@ def main(args):
                 # TODO: Let's use attributes somehow e.g. car.moving
                 # for attrib_token in obj["attribute_tokens"]:
                 #     obj_attrib = nuim.get("attribute", attrib_token)
-                bbox = [obj["bbox"][0], obj["bbox"][1], obj["bbox"][2] - obj["bbox"][0], obj["bbox"][3] - obj["bbox"][1]]
-                # cv2.rectangle(img, (bbox[0], bbox[1]), (obj["bbox"][0] + bbox[2], obj["bbox"][1] + bbox[3]), (0, 255, 0), 1)
+                
+                # x, y, width, height
+                bbox = [
+                    obj["bbox"][0] + roi.offset_top,
+                    obj["bbox"][1] + roi.offset_left,
+                    obj["bbox"][2] - obj["bbox"][0],
+                    obj["bbox"][3] - obj["bbox"][1]
+                ]
+                bbox *= roi.scale
+                bbox = int(bbox)
+
+                cv2.rectangle(img, (bbox[0], bbox[1]), (obj["bbox"][0] + bbox[2], obj["bbox"][1] + bbox[3]), (0, 255, 0), 1)
                 entry.objects.append(Object(
                     obj_class=obj_class,
                     box2d=bbox,
@@ -117,12 +133,12 @@ def main(args):
                     occluded=None,
                 ))
 
-        # img = cv2.resize(img, (800, 450))
-        # cv2.imshow("NuImage", img)
-        # cv2.waitKey(0)
+        f, (ax1) = plt.subplots(1, 1)
+        ax1.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        plt.show()
 
         # upload to mongodb
-        collection.insert_one(entry.get_dict())
+        # collection.insert_one(entry.get_dict())
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Upload 2D and 3D data from nuscenes dataset")
@@ -131,5 +147,7 @@ if __name__ == "__main__":
     parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
     parser.add_argument("--db", type=str, default="object_detection", help="MongoDB database")
     parser.add_argument("--collection", type=str, default="nuimages_test", help="MongoDB collection")
+    parser.add_argument("--resize", nargs='+', type=int, default=None, help="If set, will resize images and masks to [width, height, offset_bottom]")
+    args = parser.parse_args()
 
     main(parser.parse_args())

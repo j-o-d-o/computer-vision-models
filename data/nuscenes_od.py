@@ -9,7 +9,7 @@ from nuscenes.nuscenes import NuScenes
 from nuscenes.utils.data_classes import Box
 from common.utils import calc_cuboid_from_3d, bbox_from_cuboid, wrap_angle
 from data.nuimages_od import CLASS_MAP, Quaternion
-from data.od_spec import Object, Entry, OD_CLASS_MAPPING
+from data.label_spec import Object, Entry, OD_CLASS_MAPPING
 
 
 def main(args):
