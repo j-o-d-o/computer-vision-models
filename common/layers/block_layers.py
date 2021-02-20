@@ -11,42 +11,42 @@ def bottle_neck_block(name_prefix: str, inputs: tf.Tensor, filters: int, expansi
     skip = inputs
     # Expansion
     x = Conv2D(filters * expansion_factor, kernel_size=1, use_bias=False,
-        padding='same', name=f"conv2d-0_bottelneck_{name_prefix}")(inputs)
-    x = BatchNormalization(name=f"batchnorm-0_bottelneck_{name_prefix}")(x)
+        padding='same', name=f"{name_prefix}conv2d-0_bottelneck")(inputs)
+    x = BatchNormalization(name=f"{name_prefix}batchnorm-0_bottelneck")(x)
     x = ReLU()(x)
     # Convolution
     x = DepthwiseConv2D(kernel_size=3, strides=stride, dilation_rate=dilation_rate,
-        use_bias=False, padding='same', name=f"conv2d-1_bottelneck_{name_prefix}")(x)
-    x = BatchNormalization(name=f"batchnorm-1_bottelneck_{name_prefix}")(x)
+        use_bias=False, padding='same', name=f"{name_prefix}conv2d-1_bottelneck")(x)
+    x = BatchNormalization(name=f"{name_prefix}batchnorm-1_bottelneck")(x)
     x = ReLU()(x)
     # Project
-    x = Conv2D(filters, kernel_size=1, use_bias=False, padding='same', name=f"conv2d-2_bottelneck_{name_prefix}")(x)
-    x = BatchNormalization(name=f"batchnorm-2_bottelneck_{name_prefix}")(x)
+    x = Conv2D(filters, kernel_size=1, use_bias=False, padding='same', name=f"{name_prefix}conv2d-2_bottelneck")(x)
+    x = BatchNormalization(name=f"{name_prefix}batchnorm-2_bottelneck")(x)
     # Residual connection
     input_filters = int(inputs.shape[-1])
     if downsample:
-        skip = Conv2D(filters, kernel_size=3, strides=2, padding="same", name=f"conv2d-3_bottelneck_{name_prefix}")(skip)
+        skip = Conv2D(filters, kernel_size=3, strides=2, padding="same", name=f"{name_prefix}conv2d-3_bottelneck")(skip)
     elif input_filters != filters:
-        skip = Conv2D(filters, (1, 1), padding="same", name=f"skip_bottelneck_{name_prefix}")(skip)
+        skip = Conv2D(filters, (1, 1), padding="same", name=f"{name_prefix}skip_bottelneck")(skip)
     x = Add(name=f"bottelneck_out_{name_prefix}")([skip, x])
     return x
 
 
-def upsample_block(name_prefix: str, inputs: tf.Tensor, concat: tf.Tensor, filters: int, name: str = None) -> tf.Tensor:
+def upsample_block(name_prefix: str, inputs: tf.Tensor, concat: tf.Tensor, filters: int) -> tf.Tensor:
     """
     Upsample block will upsample one tensor x2 and concatenate with another tensor of the size
     """
     # Upsample inputs
     x = Conv2DTranspose(filters, (2, 2), strides=(2, 2), use_bias=False, padding='same')(inputs)
-    x = BatchNormalization(name=f"batchnorm-0_upsample_{name_prefix}")(x)
+    x = BatchNormalization(name=f"{name_prefix}_batchnorm-0_upsample")(x)
     x = ReLU()(x)
     # Concatenate
-    concat = Conv2D(filters, use_bias=False, kernel_size=1, name=f"conv2d-1_upsample_{name_prefix}")(concat)
-    concat = BatchNormalization(name=f"batchnorm-1_upsample_{name_prefix}")(concat)
+    concat = Conv2D(filters, use_bias=False, kernel_size=1, name=f"{name_prefix}conv2d-1_upsample")(concat)
+    concat = BatchNormalization(name=f"{name_prefix}batchnorm-1_upsample")(concat)
     concat = ReLU()(concat)
     x = Concatenate()([x, concat])
     # Conv
-    x = Conv2D(filters, kernel_size=3, use_bias=False, padding='same', name=f"conv2d-2_upsample_{name_prefix}")(x)
-    x = BatchNormalization(name=f"batchnorm-2_upsample_{name_prefix}")(x)
-    x = ReLU(name=f"upsample_out_{name_prefix}")(x)
+    x = Conv2D(filters, kernel_size=3, use_bias=False, padding='same', name=f"{name_prefix}conv2d-2_upsample")(x)
+    x = BatchNormalization(name=f"{name_prefix}batchnorm-2_upsample")(x)
+    x = ReLU(name=f"{name_prefix}upsample_out")(x)
     return x
