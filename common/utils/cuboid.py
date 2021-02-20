@@ -34,6 +34,7 @@ def calc_cuboid_from_3d(
     :param width (float): Width of object
     :param height (float): Height of object
     :param length (float): Length of object
+    :param roi (Roi): Region of intereset in case image was resized
     :param debug_img (np.ndarray, optional): If a cv2 image is provided, the 3D box will be drawn. Defaults to None.
     :return: List[float]: Cuboid with points in x, y, 1d list [back_left_top, back_left_bottom, back_right_bottom_2d,
         back_right_top_2d, front_left_top_2d, front_left_bottom_2d, front_right_bottom_2d, front_right_top_2d]

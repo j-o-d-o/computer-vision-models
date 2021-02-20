@@ -9,7 +9,7 @@ from nuimages import NuImages
 from pymongo import MongoClient
 from nuscenes.utils.data_classes import Box
 from data.label_spec import Object, Entry, OD_CLASS_MAPPING
-from common.utils import calc_cuboid_from_3d, bbox_from_cuboid, wrap_angle, resize_img
+from common.utils import calc_cuboid_from_3d, bbox_from_cuboid, wrap_angle, resize_img, Roi
 import matplotlib.pyplot as plt
 
 
@@ -39,20 +39,20 @@ IGNORE_CLASSES = ["movable_object.barrier", "movable_object.debris", "movable_ob
  "movable_object.trafficcone", "static_object.bicycle_rack", "animal"]
 
 @dataclass
-class Quaternion:
+class MyQuaternion:
     w: float
     x: float
     y: float
     z: float
 
 def main(args):
-    args.path = "/home/training_data/nuscenes/nuimages-v1.0-all"
-    args.resize = [640, 258, 0]
+    args.path = "/home/jo/training_data/nuscenes/nuimages-v1.0"
+    args.resize = [640, 256, 0]
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]
 
-    nuim = NuImages(version="v1.0-test", dataroot=args.path, lazy=True, verbose=False)
+    nuim = NuImages(version="v1.0-val", dataroot=args.path, lazy=True, verbose=False)
 
     for sample in tqdm(nuim.sample):
         sample_data = nuim.get("sample_data", sample["key_camera_token"])
@@ -65,19 +65,23 @@ def main(args):
 
         # Create image data
         img_path = args.path  + "/" + sample_data["filename"]
+        roi = Roi()
         if os.path.exists(img_path):
-            img = cv2.imread(img_path)
-            if args.resize is not None:
-                img, roi = resize_img(img, args.resize[0], args.resize[1], args.resize[2])
-            img_bytes = cv2.imencode('.jpeg', img)[1].tobytes()
-            content_type = "image/jpeg"
+            if "CAM_FRONT/" in img_path:
+                img = cv2.imread(img_path)
+                if args.resize is not None:
+                    img, roi = resize_img(img, args.resize[0], args.resize[1], args.resize[2])
+                img_bytes = cv2.imencode('.jpeg', img)[1].tobytes()
+                content_type = "image/jpeg"
+            else:
+                continue
         else:
             print("WARNING: file not found: " + img_path + ", continue with next image")
             continue
 
         # Get sensor extrinsics
         sensor = nuim.get("calibrated_sensor", sample_data["calibrated_sensor_token"])
-        q = Quaternion(sensor["rotation"][0], sensor["rotation"][1], sensor["rotation"][2], sensor["rotation"][3])
+        q = MyQuaternion(sensor["rotation"][0], sensor["rotation"][1], sensor["rotation"][2], sensor["rotation"][3])
         roll  = math.atan2(2.0 * (q.z * q.y + q.w * q.x) , 1.0 - 2.0 * (q.x * q.x + q.y * q.y))
         pitch = math.asin(2.0 * (q.y * q.w - q.z * q.x))
         yaw   = math.atan2(2.0 * (q.z * q.w + q.x * q.y) , - 1.0 + 2.0 * (q.w * q.w + q.x * q.x))
@@ -85,7 +89,7 @@ def main(args):
         entry = Entry(
             img=img_bytes,
             content_type=content_type,
-            org_source="nuscenes",
+            org_source="nuimages",
             org_id=sample_data["filename"],
             objects=[],
             ignore=[],
@@ -114,39 +118,39 @@ def main(args):
                 #     obj_attrib = nuim.get("attribute", attrib_token)
                 
                 # x, y, width, height
-                bbox = [
-                    obj["bbox"][0] + roi.offset_top,
-                    obj["bbox"][1] + roi.offset_left,
+                bbox = np.array([
+                    (obj["bbox"][0] + roi.offset_left),
+                    (obj["bbox"][1] + roi.offset_top),
                     obj["bbox"][2] - obj["bbox"][0],
                     obj["bbox"][3] - obj["bbox"][1]
-                ]
+                ], dtype=np.float32)
                 bbox *= roi.scale
-                bbox = int(bbox)
+                bbox = bbox.astype(np.int32)
 
-                cv2.rectangle(img, (bbox[0], bbox[1]), (obj["bbox"][0] + bbox[2], obj["bbox"][1] + bbox[3]), (0, 255, 0), 1)
+                cv2.rectangle(img, (bbox[0], bbox[1]), (bbox[0] + bbox[2], bbox[1] + bbox[3]), (0, 255, 0), 1)
                 entry.objects.append(Object(
                     obj_class=obj_class,
-                    box2d=bbox,
+                    box2d=bbox.tolist(),
                     box3d=None,
                     box3d_valid=False,
                     truncated=None,
                     occluded=None,
                 ))
 
-        f, (ax1) = plt.subplots(1, 1)
-        ax1.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-        plt.show()
+        # f, (ax1) = plt.subplots(1, 1)
+        # ax1.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        # plt.show()
 
         # upload to mongodb
-        # collection.insert_one(entry.get_dict())
+        collection.insert_one(entry.get_dict())
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Upload 2D and 3D data from nuscenes dataset")
     parser.add_argument("--path", type=str, help="Path to nuscenes data, should contain samples/CAMERA_FRONT/*.jpg and v1.0-trainval/*.json folder e.g. /path/to/nuscenes")
     parser.add_argument("--version", type=str, help="NuImage version e.g. v1.0-train, v1.0-val, v1.0-mini", default="v1.0-train")
     parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
-    parser.add_argument("--db", type=str, default="object_detection", help="MongoDB database")
-    parser.add_argument("--collection", type=str, default="nuimages_test", help="MongoDB collection")
+    parser.add_argument("--db", type=str, default="labels", help="MongoDB database")
+    parser.add_argument("--collection", type=str, default="nuimages_train", help="MongoDB collection")
     parser.add_argument("--resize", nargs='+', type=int, default=None, help="If set, will resize images and masks to [width, height, offset_bottom]")
     args = parser.parse_args()
 

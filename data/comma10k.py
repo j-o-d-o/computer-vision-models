@@ -16,8 +16,8 @@ if __name__ == "__main__":
   parser.add_argument("--resize", nargs='+', type=int, default=None, help="If set, will resize images and masks to [width, height, offset_bottom]")
   args = parser.parse_args()
 
-  # args.src_path = "/home/computer-vision-models/tmp/comma10k"
-  # args.resize = [640, 258, -230]
+  args.src_path = "/home/jo/training_data/comma10k"
+  args.resize = [640, 256, -230]
 
   client = MongoClient(args.conn)
   collection = client[args.db][args.collection]
