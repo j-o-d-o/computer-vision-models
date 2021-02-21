@@ -7,41 +7,7 @@ import matplotlib.pyplot as plt
 from data.label_spec import Entry
 import numpy as np
 from numba import jit
-
-
-@jit(nopython=True)
-def fill_depth_data(depth_data):
-    # depth_data is very sparse, lets change this
-    window_size = np.array((3, 3), dtype=np.int64)
-    window_center = np.array([1, 1])
-    fill_depth_data = np.zeros(depth_data.shape, dtype=np.uint16)
-    # loop over every pixel per class
-    for y in range(depth_data.shape[0] - 1):
-        for x in range(depth_data.shape[1] - 1):
-            if y >= window_center[0] and x >= window_center[1] and depth_data[window_center[0]][window_center[1]] == 0:
-                # get values for the current window
-                start_y = y - window_center[0]
-                end_y = y + window_center[0] + 1
-                start_x = x - window_center[1]
-                end_x = x + window_center[1] + 1
-                window_values = depth_data[start_y:end_y, start_x:end_x]
-                mean = None
-                count = 0
-                for iy, ix in np.ndindex(window_values.shape):
-                    value = window_values[iy][ix]
-                    if value > 0:
-                        if mean is None:
-                            mean = value
-                        else:
-                            mean += value
-                            count += 1
-                if count > 0:
-                    mean /= float(count)
-                else:
-                    mean = 0
-                fill_depth_data[y][x] = mean
-
-    return depth_data + fill_depth_data
+from common.utils import resize_img
 
 
 if __name__ == "__main__":
@@ -49,10 +15,13 @@ if __name__ == "__main__":
     parser.add_argument("--depth_map", type=str, help="Path to depth maps")
     parser.add_argument("--images", type=str, help="Path to images")
     parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
-    parser.add_argument("--db", type=str, default="depth", help="MongoDB database")
+    parser.add_argument("--db", type=str, default="labels", help="MongoDB database")
     parser.add_argument("--collection", type=str, default="driving_stereo", help="MongoDB collection")
+    parser.add_argument("--resize", nargs='+', type=int, default=None, help="If set, will resize images and masks to [width, height, offset_bottom]")
     args = parser.parse_args()
 
+
+    args.resize = [640, 256, 0]
     args.depth_map = "/home/jo/training_data/drivingstereo/depth_map"
     args.images = "/home/jo/training_data/drivingstereo/left_img"
 
@@ -94,15 +63,11 @@ if __name__ == "__main__":
             if os.path.isfile(img_file):
                 img_data = cv2.imread(img_file)
                 depth_data = cv2.imread(depth_file, -1) # load as is (uint16 grayscale img)
-                depth_data_org = depth_data
-                depth_data = fill_depth_data(depth_data)
+                # depth_data_org = depth_data
 
-                factor = (640/img_data.shape[1])
-                img_data = cv2.resize(img_data, None, img_data, fx=factor, fy=factor)
-                depth_data = cv2.resize(depth_data, None, depth_data, fx=(factor*0.5), fy=(factor*0.5), interpolation=cv2.INTER_NEAREST)
-                top_offset = img_data.shape[0] - 256
-                img_data = img_data[top_offset:, :]
-                depth_data = depth_data[(top_offset//2)+1:, :]
+                if resize_img is not None:
+                    depth_data, _ = resize_img(depth_data, args.resize[0], args.resize[1], args.resize[2], interpolation=cv2.INTER_NEAREST)
+                    img_data, _ = resize_img(img_data, args.resize[0], args.resize[1], args.resize[2])
 
                 img_bytes = cv2.imencode(".jpg", img_data)[1].tobytes()
                 depth_bytes = cv2.imencode(".png", depth_data)[1].tobytes()

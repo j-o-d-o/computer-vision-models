@@ -96,13 +96,13 @@ def map_pointcloud_to_image(
 
 
 def main(args):
-    args.path = "//home/jo/training_data/nuscenes/nuscenes-v1.0/v1.0-mini"
+    args.path = "//home/jo/training_data/nuscenes/nuscenes-v1.0"
     args.resize = [640, 256, 0]
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]
 
-    nusc = NuScenes(version="v1.0-mini", dataroot=args.path, verbose=True)
+    nusc = NuScenes(version="v1.0-trainval", dataroot=args.path, verbose=True)
     nusc.list_scenes()
 
     for scene in tqdm(nusc.scene):
@@ -222,13 +222,13 @@ def main(args):
                     # cv2.circle(img, (int(pos_2d[0]), int(pos_2d[1])), 3, (255, 0, 0))
                     # cv2.rectangle(img, (box2d[0], box2d[1]), (box2d[0] + box2d[2], box2d[1] + box2d[3]), (255, 255, 0), 1)
 
-            f, (ax1, ax2) = plt.subplots(2, 1)
-            ax1.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-            max_val = np.amax(depth_map)
-            ax2.imshow(depth_map, cmap="gray", vmin=1, vmax=10000)
-            plt.show()
+            # f, (ax1, ax2) = plt.subplots(2, 1)
+            # ax1.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+            # max_val = np.amax(depth_map)
+            # ax2.imshow(depth_map, cmap="gray", vmin=1, vmax=10000)
+            # plt.show()
 
-            # collection.insert_one(entry.get_dict())
+            collection.insert_one(entry.get_dict())
 
             if next_sample_token == "":
                 break
