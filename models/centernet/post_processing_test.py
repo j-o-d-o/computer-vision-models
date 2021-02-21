@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from models.centernet import process_2d_output
 from common.utils import Roi
-from data.od_spec import OD_CLASS_MAPPING
+from data.label_spec import OD_CLASS_MAPPING
 from models.centernet.params import CenternetParams
 
 

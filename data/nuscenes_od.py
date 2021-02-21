@@ -90,13 +90,13 @@ def map_pointcloud_to_image(
         depth_val = int(depth.real * 255.0)
         iy = int(y)
         ix = int(x)
-        cv2.circle(depth_map, (ix, iy), 6, depth_val, -1)
+        cv2.circle(depth_map, (ix, iy), 5, depth_val, -1)
 
     return depth_map
 
 
 def main(args):
-    args.path = "//home/jo/training_data/nuscenes/nuscenes-v1.0"
+    args.path = "/home/jo/training_data/nuscenes/nuscenes-v1.0"
     args.resize = [640, 256, 0]
 
     client = MongoClient(args.conn)
@@ -129,6 +129,7 @@ def main(args):
                     img, roi = resize_img(img, args.resize[0], args.resize[1], args.resize[2])
                     depth_map, _ = resize_img(depth_map, args.resize[0], args.resize[1], args.resize[2], cv2.INTER_NEAREST)
                 img_bytes = cv2.imencode('.jpeg', img)[1].tobytes()
+                depth_bytes = cv2.imencode(".png", depth_map)[1].tobytes()
                 content_type = "image/jpeg"
             else:
                 print("WARNING: file not found: " + img_path + ", continue with next image")
@@ -155,6 +156,7 @@ def main(args):
             entry = Entry(
                 img=img_bytes,
                 content_type=content_type,
+                depth=depth_bytes,
                 org_source="nuscenes",
                 org_id=img_path,
                 objects=[],
@@ -237,8 +239,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Upload 2D and 3D data from nuscenes dataset")
     parser.add_argument("--path", type=str, help="Path to nuscenes data, should contain samples/CAMERA_FRONT/*.jpg and v1.0-trainval/*.json folder e.g. /path/to/nuscenes")
     parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
-    parser.add_argument("--db", type=str, default="object_detection", help="MongoDB database")
-    parser.add_argument("--collection", type=str, default="nuscenes", help="MongoDB collection")
+    parser.add_argument("--db", type=str, default="labels", help="MongoDB database")
+    parser.add_argument("--collection", type=str, default="nuscenes_train", help="MongoDB collection")
     parser.add_argument("--resize", nargs='+', type=int, default=None, help="If set, will resize images and masks to [width, height, offset_bottom]")
 
     main(parser.parse_args())

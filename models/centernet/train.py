@@ -4,7 +4,7 @@ from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.utils import Logger, Config
 from common.callbacks import SaveToStorage
 from common.processors import AugmentImages
-from data.od_spec import OD_CLASS_MAPPING
+from data.label_spec import OD_CLASS_MAPPING
 from models.centernet import ProcessImages, CenternetParams, CenternetLoss, create_model
 
 print("Using Tensorflow Version: " + tf.__version__)
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     params.REGRESSION_FIELDS["3d_info"].active = False
 
     Config.add_config('./config.ini')
-    collection_details = ("local_mongodb", "object_detection", "nuimages")
+    collection_details = ("local_mongodb", "labels", "nuimages")
 
     # Create Data Generators
     train_data, val_data = load_ids(

@@ -3,7 +3,7 @@ import numpy as np
 from collections import OrderedDict
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.utils import Config, Logger, to_3channel
-from data.od_spec import OD_CLASS_MAPPING
+from data.label_spec import OD_CLASS_MAPPING
 from models.centertracker.processor import CenterTrackerProcess
 from models.centertracker.params import CentertrackerParams
 
@@ -20,7 +20,7 @@ class TestProcessors:
 
         # get some entries from the database
         Config.add_config('./config.ini')
-        self.collection_details = ("local_mongodb", "object_detection", "kitti")
+        self.collection_details = ("local_mongodb", "labels", "kitti")
 
         # Create Data Generators
         self.train_data, self.val_data = load_ids(

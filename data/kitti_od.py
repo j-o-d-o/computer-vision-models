@@ -5,7 +5,7 @@ import numpy as np
 import argparse
 from tqdm import tqdm
 from pymongo import MongoClient
-from data.od_spec import Object, Entry, OD_CLASS_MAPPING
+from data.label_spec import Object, Entry, OD_CLASS_MAPPING
 from common.utils import calc_cuboid_from_3d, wrap_angle
 
 # Mapping kitti classes to od_spec classes
@@ -191,7 +191,7 @@ if __name__ == "__main__":
   parser.add_argument("--calib_path", type=str, help="Path to kitti calibration data e.g. /path/to/kitti/data_object_calib/training/calib")
   parser.add_argument("--test_image_path", type=str, help="Path to kitti test images e.g. /path/to/kitti/data_object_image/testing/image_2")
   parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
-  parser.add_argument("--db", type=str, default="object_detection", help="MongoDB database")
+  parser.add_argument("--db", type=str, default="labels", help="MongoDB database")
   parser.add_argument("--collection", type=str, default="kitti", help="MongoDB collection")
   args = parser.parse_args()
 

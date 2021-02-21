@@ -19,60 +19,17 @@ if __name__ == "__main__":
 
     # get one entry from the database
     Config.add_config('./config.ini')
-    con = ("local_mongodb", "labels", "driving_stereo")
-    scenes = [
-        "2018-10-19-09-30-39",
-        "2018-10-22-10-44-02",
-        "2018-10-23-08-34-04",
-        "2018-10-31-06-55-01",
-        "2018-10-27-10-02-04",
-        "2018-10-26-15-24-18",
-        "2018-10-27-08-54-23",
-        "2018-10-25-07-37-26",
-        "2018-10-24-14-13-21",
-        "2018-10-23-13-59-11",
-        "2018-10-12-07-57-23",
-        "2018-10-18-15-04-21",
-        "2018-10-17-14-35-33",
-        "2018-10-18-10-39-04",
-        "2018-10-30-13-45-14",
-        "2018-10-16-11-43-02",
-        "2018-07-27-11-39-31",
-        "2018-10-16-11-13-47",
-        "2018-07-24-14-31-18",
-        "2018-07-18-10-16-21",
-        "2018-07-16-15-37-46",
-        "2018-10-15-11-43-36",
-        "2018-10-16-07-40-57",
-        "2018-07-18-11-25-02",
-        "2018-10-17-15-38-01",
-        "2018-10-10-07-51-49",
-        # These recs have cuts in them
-        "2018-08-17-09-45-58",
-        "2018-07-09-16-11-56",
-        "2018-07-16-15-18-53",
-        "2018-07-10-09-54-03",
-        "2018-10-11-17-08-31",
-        "2018-08-13-17-45-03",
-        "2018-08-13-15-32-19",
-        "2018-07-31-11-22-31",
-        "2018-07-31-11-07-48"
-    ]
-    train_data = []
-    val_data = []
-    collection_details = []
+    # con = ("local_mongodb", "labels", "driving_stereo")
+    con = ("local_mongodb", "labels", "nuscenes_train")
 
-    # get ids
-    for scene_token in scenes:
-        td, vd = load_ids(
-            con,
-            data_split=(97, 3),
-            shuffle_data=True,
-            mongodb_filter={"scene_token": scene_token}
-        )
-        train_data.append(td)
-        val_data.append(vd)
-        collection_details.append(con)
+    td, vd = load_ids(
+        con,
+        data_split=(90, 10),
+        shuffle_data=True,
+    )
+    train_data = [td]
+    val_data = [vd]
+    collection_details = [con]
 
     processors = [ProcessImages(params)]
     train_gen = MongoDBGenerator(

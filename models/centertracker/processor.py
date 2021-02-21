@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from tensorflow.keras.utils import to_categorical
 from models.centernet import ProcessImages
 from common.utils import resize_img
-from data.od_spec import OD_CLASS_MAPPING, OD_CLASS_IDX
+from data.label_spec import OD_CLASS_MAPPING, OD_CLASS_IDX
 import albumentations as A
 
 

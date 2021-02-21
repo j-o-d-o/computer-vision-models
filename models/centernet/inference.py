@@ -8,7 +8,7 @@ import argparse
 import time
 from pymongo import MongoClient
 from common.utils import to_3channel, resize_img
-from data.od_spec import OD_CLASS_MAPPING
+from data.label_spec import OD_CLASS_MAPPING
 from models.centernet import process_2d_output, CenternetParams
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -20,7 +20,7 @@ tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.expe
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Inference from tensorflow model")
     parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
-    parser.add_argument("--db", type=str, default="object_detection", help="MongoDB database")
+    parser.add_argument("--db", type=str, default="labels", help="MongoDB database")
     parser.add_argument("--collection", type=str, default="kitti_test", help="MongoDB collection")
     parser.add_argument("--offset_bottom", type=int, default=-180, help="Offset from the bottom in orignal image scale")
     parser.add_argument("--model_path", type=str, default="/home/jo/git/computer-vision-models/trained_models/centernet_2021-01-30-152914/tf_model_9/keras.h5", help="Path to a tensorflow model folder")
