@@ -1,7 +1,7 @@
 class Params:
     def __init__(self):
         # Training
-        self.BATCH_SIZE = 8
+        self.BATCH_SIZE = 12
         self.PLANED_EPOCHS = 90
         self.LOAD_PATH = None #"/home/computer-vision-models/trained_models/depth_ds_2021-02-18-181020/tf_model_0/keras.h5"
 

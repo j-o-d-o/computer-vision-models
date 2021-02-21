@@ -5,24 +5,26 @@ from tensorflow.keras.utils import plot_model
 from tensorflow.keras import initializers
 from models.depth import Params
 from models.depth.convert import create_dataset
-from common.utils import tflite_convert, resize_img
+from common.utils import resize_img
+from common.utils.tflite_convert import tflite_convert
 from common.layers import encoder, upsample_block, bottle_neck_block
 from common.utils.set_weights import set_weights
 
 
 def create_model(input_height: int, input_width: int, base_model_path: str = None) -> tf.keras.Model:
-    inp = Input(shape=(input_height, input_width, 3))
-    inp_rescaled = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(inp)
+    inp_t0 = Input(shape=(input_height, input_width, 3))
+    inp_t1 = Input(shape=(input_height, input_width, 3))
+    inp_t0_rescaled = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(inp_t0)
+    inp_t1_rescaled = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(inp_t1)
+    inp_conc = Concatenate()([inp_t0_rescaled, inp_t1_rescaled])
 
-    x0, _ = encoder(6, inp_rescaled, namescope="depth_model/")
+    x0, _ = encoder(8, inp_conc, namescope="depth_model/")
     x0 = Conv2D(8, (3, 3), use_bias=False, padding="same", name="depth_model/head")(x0)
     x0 = BatchNormalization()(x0)
     x0 = ReLU()(x0)
-    x0 = Conv2D(1, kernel_size=1, padding="same", activation="relu",
-        use_bias=True, bias_initializer=tf.keras.initializers.Constant(0.01),
-        bias_constraint=tf.keras.constraints.NonNeg(), name="depth_model/output")(x0)
+    x0 = Conv2D(1, kernel_size=1, padding="same", activation="relu", use_bias=True, name="depth_model/output")(x0)
 
-    depth_model = Model(inputs=inp, outputs=x0)
+    depth_model = Model(inputs=[inp_t0, inp_t1], outputs=x0)
     if base_model_path is not None:
         depth_model = set_weights(base_model_path, depth_model)
 

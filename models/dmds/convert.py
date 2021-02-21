@@ -36,7 +36,7 @@ def create_dataset(input_shape):
         img_t1 = cv2.imdecode(decoded_img_t1, cv2.IMREAD_COLOR)
         img_t1, _ = resize_img(img_t1, input_shape[2], input_shape[1], offset_bottom=0)
 
-        dataset.append([np.array([img_t0], dtype=np.float32), np.array([img_t0], dtype=np.float32), intr])
+        dataset.append([np.array([img_t0], dtype=np.float32), np.array([img_t1], dtype=np.float32), intr])
 
     return dataset
 
