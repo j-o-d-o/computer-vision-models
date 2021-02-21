@@ -9,7 +9,11 @@ def set_weights(base_model_path, new_model):
     for layer in new_model.layers:
         if layer.name in base_layer_dict:
             print(f"Setting weights for {layer.name}")
-            layer.set_weights(base_layer_dict[layer.name].get_weights())
+            try:
+                weights = base_layer_dict[layer.name].get_weights()
+                layer.set_weights(weights)
+            except ValueError as e:
+                print(f"ValueError: {e}")
         else:
             print(f"Not found: {layer.name}")
     return new_model

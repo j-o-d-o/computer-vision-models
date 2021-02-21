@@ -4,7 +4,7 @@ class DmdsParams:
         self.BATCH_SIZE = 2
         self.PLANED_EPOCHS = 90
         self.LOAD_PATH = None
-        self.LOAD_DEPTH_MODEL = "/home/computer-vision-models/trained_models/depth_ds_2021-02-20-095528/tf_model_1/keras.h5"
+        self.LOAD_DEPTH_MODEL = None
 
         # Input
         self.INPUT_WIDTH = 640 # width of input img in [px]

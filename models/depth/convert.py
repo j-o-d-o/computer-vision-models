@@ -17,20 +17,15 @@ def create_dataset(input_shape):
     # Create sample dataset for post training quantization
     client = MongoClient("mongodb://localhost:27017")
     collection = client["depth"]["driving_stereo"]
-    documents = collection.find({}).limit(100)
+    documents = collection.find({}).limit(500)
 
     documents_list = list(documents)
     assert(len(documents_list) > 0)
-    for i in range(0, len(documents_list) - 1, 2):
+    for i in range(len(documents_list)):
         decoded_img_t0 = np.frombuffer(documents_list[i]["img"], np.uint8)
         img_t0 = cv2.imdecode(decoded_img_t0, cv2.IMREAD_COLOR)
         img_t0, _ = resize_img(img_t0, input_shape[2], input_shape[1], offset_bottom=0)
-
-        decoded_img_t1 = np.frombuffer(documents_list[i+1]["img"], np.uint8)
-        img_t1 = cv2.imdecode(decoded_img_t1, cv2.IMREAD_COLOR)
-        img_t1, _ = resize_img(img_t1, input_shape[2], input_shape[1], offset_bottom=0)
-    
-        dataset.append([np.array([img_t0], dtype=np.float32), np.array([img_t1], dtype=np.float32)])
+        dataset.append(np.array([img_t0], dtype=np.float32))
     return dataset
 
 

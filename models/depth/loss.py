@@ -29,7 +29,7 @@ class DepthLoss(Loss):
         surface_y_pred = pygame.surfarray.make_surface(self._cmap(y_pred[0]))
         self.display.blit(surface_y_pred, (640, 0))
 
-        if self.step_counter % 500 == 0:
+        if self.step_counter % 1000 == 0:
             pygame.image.save(self.display, f"{self.save_path}/train_result_{self.step_counter}.png")
 
         pygame.display.flip()

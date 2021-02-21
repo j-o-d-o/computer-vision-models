@@ -7,7 +7,6 @@ import cv2
 import matplotlib.pyplot as plt
 from common.utils import resize_img
 from models.dmds_ref import regularizers, resampler, intrinsics_utils
-from data.driving_stereo_depth import fill_depth_data
 from models.depth.loss import DepthLoss
 
 
@@ -95,6 +94,7 @@ class DmdsLoss:
         pixel_y = tf.clip_by_value(pixel_y, 0.0, _tensor(height - 1))
         mask_stack = tf.stack([x_not_underflow, y_not_underflow, x_not_overflow, y_not_overflow, z_positive, not_nan], axis=0)
         mask = tf.reduce_all(mask_stack, axis=0)
+        mask = tf.cast(mask, tf.float32)
 
         return pixel_x, pixel_y, z, mask
 
@@ -105,8 +105,9 @@ class DmdsLoss:
         x1_resampled = tf.squeeze(x1_resampled, axis=-1)
 
         mask = tf.stop_gradient(mask)
-        # frame0_closer_to_camera = tf.cast(tf.logical_and(mask, tf.less_equal(z, x1_resampled)), tf.float32)
-        frame0_closer_to_camera = tf.cast(mask, tf.float32)
+        frame0_closer_to_camera = tf.cast(tf.less_equal(z, x1_resampled), tf.float32)
+        frame0_closer_to_camera *= mask
+        # frame0_closer_to_camera = tf.cast(mask, tf.float32)
         n = tf.reduce_sum(frame0_closer_to_camera)
         depth_l1_diff = tf.abs(x1_resampled - z)
         depth_error = tf.reduce_mean(tf.math.multiply_no_nan(depth_l1_diff, frame0_closer_to_camera))
@@ -217,6 +218,10 @@ class DmdsLoss:
         obj_tran_inv = tf.image.resize(obj_tran_inv, img0.shape[1:3], method='nearest')
 
         # to avoid division by zero (final depth map layer has relu activation)
+        depth_mask0 = tf.cast(tf.greater(depth0, 0.1), tf.float32)
+        depth_mask1 = tf.cast(tf.greater(depth1, 0.1), tf.float32)
+        depth_mask = depth_mask0 * depth_mask1
+        depth_mask = tf.squeeze(depth_mask, axis=-1)
         depth0 += 0.02
         depth1 += 0.02
 
@@ -232,15 +237,15 @@ class DmdsLoss:
 
         # Depth regulizers
         # -------------------------------
-        # mean_depth = tf.reduce_mean(depth1)
-        # depth_var = tf.reduce_mean(tf.square(depth1 / mean_depth - 1.0))
-        # self.loss_vals["depth_var"] = tf.math.reciprocal_no_nan(depth_var) * self.params.var_depth
+        mean_depth = tf.reduce_mean(depth1)
+        depth_var = tf.reduce_mean(tf.square(depth1 / mean_depth - 1.0))
+        self.loss_vals["depth_var"] = tf.math.reciprocal_no_nan(depth_var) * self.params.var_depth
 
         disp = tf.math.reciprocal_no_nan(depth1)
         mean_disp = tf.reduce_mean(disp, axis=[1, 2, 3], keepdims=True)
         self.loss_vals["depth_smooth"] = regularizers.joint_bilateral_smoothing(disp * tf.math.reciprocal_no_nan(mean_disp), img1) * self.params.depth_smoothing
 
-        self.loss_vals["depth_abs"] = DepthLoss._calc_loss(tf.concat([gt_x0, gt_x1], axis=0), depth0)
+        # self.loss_vals["depth_abs"] = DepthLoss._calc_loss(tf.concat([gt_x0, gt_x1], axis=0), depth0)
 
         # Motionmap regulizers
         # -------------------------------
@@ -251,6 +256,7 @@ class DmdsLoss:
         # Cyclic and RGB Loss
         # -------------------------------
         px, py, z, mask = self.warp_it(tf.squeeze(depth0, axis=-1), T, R, K, K_inv)
+        mask *= depth_mask
         depth1 = tf.stop_gradient(depth1)
 
         self.calc_warp_error(img0, img1, depth1, px, py, z, mask)
@@ -294,7 +300,6 @@ def test():
         # create gt depth_maps
         x0 = cv2.imdecode(np.frombuffer(documents[i]["depth"], np.uint8), cv2.IMREAD_ANYDEPTH)
         x0, _ = resize_img(x0, 320, 128, 0, interpolation=cv2.INTER_NEAREST)
-        x0 = fill_depth_data(x0)
         x0 = np.expand_dims(x0, axis=-1)
         x0 = np.stack([x0]*batch_size, axis=0)
         x0 = x0.astype(np.float32)
@@ -302,7 +307,6 @@ def test():
 
         x1 = cv2.imdecode(np.frombuffer(documents[i+1]["depth"], np.uint8), cv2.IMREAD_ANYDEPTH)
         x1, _ = resize_img(x1, 320, 128, 0, interpolation=cv2.INTER_NEAREST)
-        x1 = fill_depth_data(x1)
         x1 = np.expand_dims(x1, axis=-1)
         x1 = np.stack([x1]*batch_size, axis=0)
         x1 = x1.astype(np.float32)

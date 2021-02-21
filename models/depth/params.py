@@ -3,7 +3,8 @@ class Params:
         # Training
         self.BATCH_SIZE = 12
         self.PLANED_EPOCHS = 90
-        self.LOAD_PATH = None #"/home/computer-vision-models/trained_models/depth_ds_2021-02-18-181020/tf_model_0/keras.h5"
+        self.LOAD_PATH = None
+        self.LOAD_PATH_WEIGHTS = "/home/computer-vision-models/trained_models/depth_ds_2021-02-20-21505/tf_model_3/keras.h5"
 
         # Input
         self.INPUT_WIDTH = 640 # width of input img in [px]

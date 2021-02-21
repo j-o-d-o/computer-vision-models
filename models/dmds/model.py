@@ -53,25 +53,31 @@ class DmdsModel(Model):
         input_data, gt, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
 
         with backprop.GradientTape() as tape:
-            combined_input = (
+            depth_model = self.get_layer("depth_model")
+            motion_model = self.get_layer("motion_model")
+            
+            combined_input_depth_model = (tf.concat([input_data[1], input_data[0]], axis=0),)
+            depth1 = depth_model(combined_input_depth_model, training=True)
+            depth0 = tf.concat(tf.split(depth1, 2, axis=0)[::-1], axis=0)
+
+            combined_input_motion_model = (
                 tf.concat([input_data[0], input_data[1]], axis=0),
                 tf.concat([input_data[1], input_data[0]], axis=0),
-                tf.concat([input_data[2], input_data[2]], axis=0)
+                depth0,
+                depth1,
             )
-            y_pred = self(combined_input, training=True)
-
-            depth0, depth1, obj_tran, bg_tran, rot, _ = y_pred
+            obj_tran, bg_tran, rot = motion_model(combined_input_motion_model, training=True)
 
             obj_tran_inv = tf.concat(tf.split(obj_tran, 2, axis=0)[::-1], axis=0)
             bg_tran_inv = tf.concat(tf.split(bg_tran, 2, axis=0)[::-1], axis=0)
             rot_inv = tf.concat(tf.split(rot, 2, axis=0)[::-1], axis=0)
 
             loss_val = self.custom_loss.calc(
-                combined_input[0], combined_input[1],
+                combined_input_motion_model[0], combined_input_motion_model[1],
                 depth0, depth1,
                 obj_tran, obj_tran_inv,
                 bg_tran, bg_tran_inv,
-                rot, rot_inv, combined_input[2],
+                rot, rot_inv, tf.concat([input_data[2], input_data[2]], axis=0),
                 gt[0], gt[1], self.train_step_counter)
             loss_dict = self.custom_loss.loss_vals.copy()
 
@@ -151,23 +157,16 @@ class ScaleConstraint(tf.keras.constraints.Constraint):
         return {'constraint_minimum': self.constraint_minimum}
 
 
-def create_model(input_height: int, input_width: int, depth_model_path: str = None) -> tf.keras.Model:
-    intr = Input(shape=(3, 3))
-    
+def create_motion_model(input_height: int, input_width: int) -> tf.keras.Model:
     input_t0 = Input(shape=(input_height, input_width, 3))
     rescaled_input_t0 = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(input_t0)
 
     input_t1 = Input(shape=(input_height, input_width, 3))
     rescaled_input_t1 = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(input_t1)
 
-    # Depth Model
-    # ------------------------------
-    DepthModel = create_depth_model(input_height, input_width, depth_model_path)
-    depth_t0 = DepthModel(input_t0)
-    depth_t1 = DepthModel(input_t1)
+    depth_t0 = Input(shape=(input_height, input_width, 1))
+    depth_t1 = Input(shape=(input_height, input_width, 1))
 
-    # Motion Model
-    # ------------------------------
     inp_mm_t0 = Concatenate()([rescaled_input_t0, depth_t0])
     inp_mm_t1 = Concatenate()([rescaled_input_t1, depth_t1])
     mm_inp = Concatenate()([inp_mm_t0, inp_mm_t1])
@@ -220,8 +219,27 @@ def create_model(input_height: int, input_width: int, depth_model_path: str = No
         rot_scaling(tf.expand_dims(background_rotation[:, :, :, 1], axis=-1)),
         rot_scaling(tf.expand_dims(background_rotation[:, :, :, 2], axis=-1))])
 
-    return DmdsModel(inputs=[input_t0, input_t1, intr],
-        outputs=[depth_t0, depth_t1, resudial_translation, background_translation, background_rotation, intr])
+    motion_model = Model(inputs=[input_t0, input_t1, depth_t0, depth_t1], outputs=[resudial_translation, background_translation, background_rotation] , name="motion_model")
+    return motion_model
+
+def create_model(input_height: int, input_width: int, depth_model_path: str = None) -> tf.keras.Model:
+    intr = Input(shape=(3, 3))
+    
+    input_t0 = Input(shape=(input_height, input_width, 3))
+    input_t1 = Input(shape=(input_height, input_width, 3))
+    depth_t0 = Input(shape=(input_height, input_width, 1))
+
+    # Depth Model
+    # ------------------------------
+    DepthModel = create_depth_model(input_height, input_width, depth_model_path)
+    depth_t1 = DepthModel([input_t1])
+
+    # Motion Model
+    # ------------------------------
+    MotionModel = create_motion_model(input_height, input_width)
+    motion_outputs = MotionModel([input_t0, input_t1, depth_t0, depth_t1])
+
+    return DmdsModel(inputs=[input_t0, input_t1, depth_t0, intr], outputs=[depth_t1, *motion_outputs, intr])
 
 
 if __name__ == "__main__":

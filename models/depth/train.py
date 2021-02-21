@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     # get one entry from the database
     Config.add_config('./config.ini')
-    con = ("local_mongodb", "depth", "driving_stereo")
+    con = ("local_mongodb", "labels", "driving_stereo")
     scenes = [
         "2018-10-19-09-30-39",
         "2018-10-22-10-44-02",
@@ -48,15 +48,15 @@ if __name__ == "__main__":
         "2018-10-17-15-38-01",
         "2018-10-10-07-51-49",
         # These recs have cuts in them
-        # "2018-08-17-09-45-58",
-        # "2018-07-09-16-11-56",
-        # "2018-07-16-15-18-53",
-        # "2018-07-10-09-54-03",
-        # "2018-10-11-17-08-31",
-        # "2018-08-13-17-45-03",
-        # "2018-08-13-15-32-19",
-        # "2018-07-31-11-22-31",
-        # "2018-07-31-11-07-48",
+        "2018-08-17-09-45-58",
+        "2018-07-09-16-11-56",
+        "2018-07-16-15-18-53",
+        "2018-07-10-09-54-03",
+        "2018-10-11-17-08-31",
+        "2018-08-13-17-45-03",
+        "2018-08-13-15-32-19",
+        "2018-07-31-11-22-31",
+        "2018-07-31-11-07-48"
     ]
     train_data = []
     val_data = []
@@ -66,10 +66,9 @@ if __name__ == "__main__":
     for scene_token in scenes:
         td, vd = load_ids(
             con,
-            data_split=(95, 5),
-            shuffle_data=False,
-            mongodb_filter={"scene_token": scene_token},
-            sort_by={"timestamp": 1},
+            data_split=(97, 3),
+            shuffle_data=True,
+            mongodb_filter={"scene_token": scene_token}
         )
         train_data.append(td)
         val_data.append(vd)
@@ -81,16 +80,14 @@ if __name__ == "__main__":
         train_data,
         batch_size=params.BATCH_SIZE,
         processors=processors,
-        shuffle_data=False,
-        data_group_size=2
+        shuffle_data=True
     )
     val_gen = MongoDBGenerator(
         collection_details,
         val_data,
         batch_size=params.BATCH_SIZE,
         processors=processors,
-        shuffle_data=False,
-        data_group_size=2
+        shuffle_data=True
     )
 
     # Create Model
@@ -99,7 +96,7 @@ if __name__ == "__main__":
     if params.LOAD_PATH is not None:
         model: models.Model = models.load_model(params.LOAD_PATH, compile=False)
     else:
-        model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
+        model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH, params.LOAD_PATH_WEIGHTS)
 
     # Train model
     storage_path = "./trained_models/depth_ds_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
