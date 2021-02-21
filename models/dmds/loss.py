@@ -199,17 +199,17 @@ class DmdsLoss:
         np_obj_tran = obj_tran.numpy()
         np_bg_tran = bg_tran.numpy()
 
-        bg_abs = tf.abs(bg_tran)
-        bg_mask = tf.cast(tf.greater(bg_abs, 5.0), tf.float32)
-        n_bg = tf.reduce_sum(bg_mask)
-        bg_loss = tf.reduce_sum(bg_mask * (bg_abs - 5.0))
-        self.loss_vals["bg_loss"] = tf.cond(tf.greater(n_bg, 0), lambda: bg_loss / n_bg, lambda: 0)
-
-        rot_abs = tf.abs(rot)
-        rot_mask = tf.cast(tf.greater(rot_abs, 0.3), tf.float32)
-        n_rot = tf.reduce_sum(rot_mask)
-        rot_loss = tf.reduce_sum(rot_mask * (rot_abs - 0.3))
-        self.loss_vals["rot_loss"] = tf.cond(tf.greater(n_rot, 0), lambda: rot_loss / n_rot, lambda: 0)
+        # some attempt to make sure rotation and translation are not getting too big
+        # bg_abs = tf.abs(bg_tran)
+        # bg_mask = tf.cast(tf.greater(bg_abs, 5.0), tf.float32)
+        # n_bg = tf.reduce_sum(bg_mask)
+        # bg_loss = tf.reduce_sum(bg_mask * (bg_abs - 5.0))
+        # self.loss_vals["bg_loss"] = tf.cond(tf.greater(n_bg, 0), lambda: bg_loss / n_bg, lambda: 0)
+        # rot_abs = tf.abs(rot)
+        # rot_mask = tf.cast(tf.greater(rot_abs, 0.3), tf.float32)
+        # n_rot = tf.reduce_sum(rot_mask)
+        # rot_loss = tf.reduce_sum(rot_mask * (rot_abs - 0.3))
+        # self.loss_vals["rot_loss"] = tf.cond(tf.greater(n_rot, 0), lambda: rot_loss / n_rot, lambda: 0)
 
         # Data generation
         # -------------------------------
