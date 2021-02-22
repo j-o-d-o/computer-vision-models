@@ -19,13 +19,13 @@ if __name__ == "__main__":
 
     # get one entry from the database
     Config.add_config('./config.ini')
-    # con = ("local_mongodb", "labels", "driving_stereo")
-    con = ("local_mongodb", "labels", "nuscenes_train")
+    con = ("local_mongodb", "labels", "driving_stereo")
+    # con = ("local_mongodb", "labels", "nuscenes_train")
 
     td, vd = load_ids(
         con,
-        data_split=(90, 10),
-        shuffle_data=True,
+        data_split=(96, 4),
+        shuffle_data=True
     )
     train_data = [td]
     val_data = [vd]
@@ -60,7 +60,6 @@ if __name__ == "__main__":
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
     callbacks = [SaveToStorage(storage_path, model, True), tensorboard_callback]
 
-    # custom_loss parameter only works because we override the compile() and train_step() of the tf.keras.Model
     model.compile(optimizer=opt, loss=DepthLoss(save_path=storage_path))
     model.summary()
 

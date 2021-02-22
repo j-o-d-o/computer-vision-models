@@ -23,14 +23,14 @@ def create_model(input_height: int, input_width: int, base_model_path: str = Non
 
     depth_model = Model(inputs=[inp_t0], outputs=x0, name="depth_model")
     if base_model_path is not None:
-        depth_model = set_weights(base_model_path, depth_model)
+        depth_model = set_weights(base_model_path, depth_model, prefix="depth_model/")
 
     return depth_model
 
 
 if __name__ == "__main__":
     params = Params()
-    model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
+    model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH, params.LOAD_PATH_WEIGHTS)
     model.summary()
     plot_model(model, to_file="./tmp/depth_model.png")
     tflite_convert(model, "./tmp", True, True, create_dataset(model.input[0].shape))

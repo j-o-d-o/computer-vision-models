@@ -17,7 +17,7 @@ def create_dataset(input_shape):
     # Create sample dataset for post training quantization
     client = MongoClient("mongodb://localhost:27017")
     collection = client["depth"]["driving_stereo"]
-    documents = collection.find({}).limit(500)
+    documents = collection.find({}).limit(600).skip(2000)
 
     documents_list = list(documents)
     assert(len(documents_list) > 0)
@@ -26,6 +26,7 @@ def create_dataset(input_shape):
         img_t0 = cv2.imdecode(decoded_img_t0, cv2.IMREAD_COLOR)
         img_t0, _ = resize_img(img_t0, input_shape[2], input_shape[1], offset_bottom=0)
         dataset.append(np.array([img_t0], dtype=np.float32))
+
     return dataset
 
 
@@ -36,9 +37,9 @@ if __name__ == "__main__":
     parser.add_argument("--compile_edge_tpu", action="store_true", help="Compile TFLite model also for EdgeTpu")
     args = parser.parse_args()
 
-    # args.compile_edge_tpu = True
-    # args.quantize = True
-    # args.model_path = ""
+    args.compile_edge_tpu = True
+    args.quantize = True
+    args.model_path = "/home/computer-vision-models/trained_models/depth_ds_2021-02-22-13943/tf_model_1"
 
     model = tf.keras.models.load_model(args.model_path, compile=False)
 

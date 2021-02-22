@@ -49,6 +49,11 @@ class ProcessImages(IPreProcessor):
         mask_t1 = mask_t1.astype(np.float32)
         mask_t1 /= 255.0
 
+        pos_mask = np.where(mask_t1 > 0.0, 1.0, 0.0) 
+        mask_t1 = np.clip(mask_t1, 4.1, 130.0)
+        mask_t1 = 22 * np.sqrt(mask_t1 - 4)
+        mask_t1 *= pos_mask
+
         input_data = img_t0
         ground_truth = mask_t1
 

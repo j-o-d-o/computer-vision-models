@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
-from common.utils import Config, Logger
+from common.utils import Config, Logger, cmap_depth
 from models.depth.params import Params
 from models.depth.processor import ProcessImages
 
@@ -19,7 +19,7 @@ class TestProcessors:
 
         # get one entry from the database
         Config.add_config('./config.ini')
-        collection_details = ("local_mongodb", "depth", "driving_stereo")
+        collection_details = ("local_mongodb", "labels", "driving_stereo")
         scenes = [
             "2018-10-26-15-24-18",
             "2018-10-19-09-30-39",
@@ -58,5 +58,5 @@ class TestProcessors:
 
                 f, (ax11, ax22) = plt.subplots(2, 1)
                 ax11.imshow(cv2.cvtColor(img_t0.astype(np.uint8), cv2.COLOR_BGR2RGB))
-                ax22.imshow(mask_t0, cmap='gray', vmin=0, vmax=170)
+                ax22.imshow(cv2.cvtColor(cmap_depth(mask_t0, vmin=0.1, vmax=255.0), cv2.COLOR_BGR2RGB))
                 plt.show()
