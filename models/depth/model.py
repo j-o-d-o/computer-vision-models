@@ -23,7 +23,7 @@ def create_model(input_height: int, input_width: int, base_model_path: str = Non
 
     depth_model = Model(inputs=[inp_t0], outputs=x0, name="depth_model")
     if base_model_path is not None:
-        depth_model = set_weights(base_model_path, depth_model, prefix="depth_model/")
+        depth_model = set_weights(base_model_path, depth_model)
 
     return depth_model
 

@@ -28,8 +28,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # For debugging force a value here
-    args.use_edge_tpu = True
-    args.model_path = "/home/computer-vision-models/trained_models/depth_ds_2021-02-22-13943/tf_model_1/model_quant_edgetpu.tflite"
+    args.use_edge_tpu = False
+    args.model_path = "/home/computer-vision-models/trained_models/depth_ds_2021-02-22-13943/tf_model_1/keras.h5" # model_quant_edgetpu.tflite"
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     # cap.set(cv2.CAP_PROP_POS_MSEC, 0)
     # while (cap.isOpened()):
     #     ret, img = cap.read()
-    documents = collection.find({})
+    documents = collection.find({}).limit(100)
     documents = list(documents)
     for i in range(0, len(documents)-1):
         decoded_img = np.frombuffer(documents[i]["img"], np.uint8)
@@ -100,13 +100,13 @@ if __name__ == "__main__":
         depth_map = cv2.cvtColor(cmap_depth(depth_map, vmin=4.1, vmax=130.0), cv2.COLOR_BGR2RGB)
         img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
 
-        # f, (ax1, ax2) = plt.subplots(2, 1)
-        # ax1.imshow(img)
-        # ax2.imshow(depth_map)
-        # plt.show()
+        f, (ax1, ax2) = plt.subplots(2, 1)
+        ax1.imshow(img)
+        ax2.imshow(depth_map)
+        plt.show()
 
-        surface_y_true = pygame.surfarray.make_surface(img.swapaxes(0, 1))
-        display.blit(surface_y_true, (0, 0))
-        surface_y_pred = pygame.surfarray.make_surface(depth_map.swapaxes(0, 1))
-        display.blit(surface_y_pred, (640, 0))
-        pygame.display.flip()
+        # surface_y_true = pygame.surfarray.make_surface(img.swapaxes(0, 1))
+        # display.blit(surface_y_true, (0, 0))
+        # surface_y_pred = pygame.surfarray.make_surface(depth_map.swapaxes(0, 1))
+        # display.blit(surface_y_pred, (640, 0))
+        # pygame.display.flip()
