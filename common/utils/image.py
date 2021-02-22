@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 from dataclasses import dataclass
 from numba import jit
+from matplotlib import cm
 
 
 @dataclass
@@ -85,3 +86,12 @@ def to_3channel(raw_mask_output, cls_items, threshold = None, use_weight = False
             new_i = i * 3
             array[new_i:new_i+3] = cls_colour
     return array.reshape((raw_mask_output.shape[0], raw_mask_output.shape[1], 3))
+
+def cmap_depth(depth_map, vmin:float = 1.0, vmax:float = 200.0):
+    viridis = cm.get_cmap('viridis', 1000)
+
+    # depth_map_mask = np.where(depth_map > vmin, depth_map)
+    rgb_depth = viridis((depth_map / vmax))
+
+    rgb_depth = (rgb_depth[:, :, :3] * 255.0).astype(np.uint8)
+    return rgb_depth
