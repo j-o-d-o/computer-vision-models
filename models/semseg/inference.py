@@ -1,5 +1,5 @@
 import tensorflow as tf
-tf.config.experimental.set_memory_growth(tf.config.experimental.list_physical_devices('GPU'), True)
+tf.config.experimental.set_memory_growth(tf.config.experimental.list_physical_devices('GPU')[0], True)
 
 import tensorflow_model_optimization as tfmot
 import tflite_runtime.interpreter as tflite
@@ -19,7 +19,7 @@ from data.label_spec import SEMSEG_CLASS_MAPPING
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Inference from tensorflow model")
     parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
-    parser.add_argument("--db", type=str, default="semseg", help="MongoDB database")
+    parser.add_argument("--db", type=str, default="labels", help="MongoDB database")
     parser.add_argument("--collection", type=str, default="comma10k", help="MongoDB collection")
     parser.add_argument("--img_width", type=int, default=640, help="Width of image, must be model input")
     parser.add_argument("--img_height", type=int, default=256, help="Width of image, must be model input")
@@ -30,8 +30,7 @@ if __name__ == "__main__":
 
     # For debugging force a value here
     args.use_edge_tpu = True
-    args.model_path = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-06-062841/tf_model_40/model_quant_edgetpu.tflite"
-    # args.model_path = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-06-062841/tf_model_40/keras.h5"
+    args.model_path = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-22-194858/tf_model_0/model_quant_edgetpu.tflite"
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]
@@ -68,7 +67,7 @@ if __name__ == "__main__":
     # while (cap.isOpened()):
     #     ret, img = cap.read()
 
-    documents = collection.find({}).limit(10)
+    documents = collection.find({}).limit(100)
     for doc in documents:
         decoded_img = np.frombuffer(doc["img"], np.uint8)
         img = cv2.imdecode(decoded_img, cv2.IMREAD_COLOR)

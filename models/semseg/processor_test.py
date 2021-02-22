@@ -20,7 +20,7 @@ class TestProcessors:
 
         # get one entry from the database
         Config.add_config('./config.ini')
-        self.collection_details = ("local_mongodb", "semseg", "comma10k")
+        self.collection_details = ("local_mongodb", "labels", "comma10k")
 
         # Create Data Generators
         self.train_data, self.val_data = load_ids(
@@ -31,8 +31,8 @@ class TestProcessors:
 
     def test_process_image(self):
         train_gen = MongoDBGenerator(
-            self.collection_details,
-            self.train_data,
+            [self.collection_details],
+            [self.train_data],
             batch_size=10,
             processors=[ProcessImages(self.params)]
         )

@@ -7,17 +7,23 @@ from common.utils import resize_img
 from data.label_spec import SEMSEG_CLASS_MAPPING
 from models.semseg.params import SemsegParams
 import albumentations as A
+from numba import jit
+import time
 
-
-def key_to_index(value):
-    idx = 0
-    for cls, colour in SEMSEG_CLASS_MAPPING.items():
-        hex_colour = (colour[0] << 16) + (colour[1] << 8) + colour[2]
-        if value == hex_colour:
-            return idx
-        idx += 1
-    assert(False and "colour does not exist: " + str(value))
-    return -1
+@jit(nopython=True)
+def hex_to_one_hot(hex_mask, hex_colours):
+    for i in range(hex_mask.shape[0]):
+        for j in range(hex_mask.shape[1]):
+            idx = 0
+            for hex_colour in hex_colours:
+                if hex_mask[i][j] == hex_colour:
+                    hex_mask[i][j] = idx
+                    found_it = True
+                    continue
+                idx += 1
+            if not found_it:
+                assert(False and "colour does not exist: " + str(value))
+    return hex_mask
 
 def to_hex(img):
     """
@@ -69,6 +75,7 @@ class ProcessImages(IPreProcessor):
         return img, mask
 
     def process(self, raw_data, input_data, ground_truth, piped_params=None):
+        # start_time = time.time()
         # Add input_data
         img_encoded = np.frombuffer(raw_data["img"], np.uint8)
         input_data = cv2.imdecode(img_encoded, cv2.IMREAD_COLOR)
@@ -82,8 +89,11 @@ class ProcessImages(IPreProcessor):
 
         # one hot encode based on class mapping from semseg spec
         mask_img = to_hex(mask_img) # convert 3 channel representation to single hex channel
-        vfunc = np.vectorize(key_to_index)
-        mask_img = vfunc(mask_img)
+        colours = []
+        for _, colour in list(SEMSEG_CLASS_MAPPING.items()):
+            hex_colour = (colour[0] << 16) + (colour[1] << 8) + colour[2]
+            colours.append(hex_colour)
+        mask_img = hex_to_one_hot(mask_img, colours)
         nb_classes = len(SEMSEG_CLASS_MAPPING)
         ground_truth = to_categorical(mask_img, nb_classes)
 
@@ -92,4 +102,6 @@ class ProcessImages(IPreProcessor):
         ground_truth, _ = resize_img(ground_truth, self.params.MASK_WIDTH, self.params.MASK_HEIGHT, offset_bottom=0, interpolation=cv2.INTER_NEAREST)
 
         input_data = input_data.astype(np.float32)
+        # elapsed_time = time.time() - start_time
+        # print(str(elapsed_time) + " s")
         return raw_data, input_data, ground_truth, piped_params
