@@ -34,23 +34,8 @@ class SemsegLoss():
 
         pygame.display.flip()
 
-    def class_focal_loss(self, y_true, y_pred):
-        pos_loss = (
-            -tf.math.pow(1.0 - y_true, 2.0)
-            * tf.math.log(tf.clip_by_value(y_true, 0.01, 0.99))
-        )
-        neg_loss = (
-            -tf.math.pow(1.0 - y_true, 4.0)
-            * tf.math.pow(y_pred, 2.0)
-            * tf.math.log(tf.clip_by_value(1.0 - y_pred, 0.01, 0.99))
-        )
-
-        pos_loss_val = tf.reduce_mean(pos_loss)
-        neg_loss_val = tf.reduce_mean(neg_loss)
-
-        return pos_loss_val + neg_loss_val
-
-    def tversky(self, y_true, y_pred, pos_mask):
+    @staticmethod
+    def tversky(y_true, y_pred, pos_mask):
         smooth = 1.0
         y_true_masked = y_true * pos_mask
         y_pred_masked = y_pred * pos_mask
@@ -62,8 +47,9 @@ class SemsegLoss():
         alpha = 0.7
         return (true_pos + smooth)/(true_pos + alpha*false_neg + (1-alpha)*false_pos + smooth)
 
-    def focal_tversky(self, y_true,y_pred, pos_mask):
-        pt_1 = self.tversky(y_true, y_pred, pos_mask)
+    @staticmethod
+    def focal_tversky(y_true,y_pred, pos_mask):
+        pt_1 = SemsegLoss.tversky(y_true, y_pred, pos_mask)
         gamma = 0.75
         return tf.math.pow((1.0 - pt_1), gamma)
 
