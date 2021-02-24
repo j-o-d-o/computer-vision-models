@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     # Create Model
     storage_path = "./trained_models/semseg_comma10k_augment_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
-    opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    opt = optimizers.Adam(lr=0.0004, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
     loss = SemsegLoss(save_path=storage_path)
 
     if params.LOAD_PATH is not None:
@@ -53,9 +53,9 @@ if __name__ == "__main__":
             custom_objects = {"SemsegLoss": loss}
             model: models.Model = models.load_model(params.LOAD_PATH, custom_objects=custom_objects, compile=False)
     else:
-        model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
+        model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH, params.LOAD_WEIGHTS)
 
-    model.compile(optimizer=opt, loss=loss, metrics=tf.keras.metrics.CategoricalCrossentropy(from_logits=True))
+    model.compile(optimizer=opt, custom_loss=loss)
     model.summary()
     # for debugging custom loss or layers, set to True
     model.run_eagerly = True

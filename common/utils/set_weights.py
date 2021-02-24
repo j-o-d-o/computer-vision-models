@@ -1,9 +1,9 @@
 import tensorflow as tf
 
 
-def set_weights(base_model_path, new_model):
+def set_weights(base_model_path, new_model, custom_objects = {}):
     # Store names of base model layers of model in dict
-    base_model = tf.keras.models.load_model(base_model_path, compile=False)
+    base_model = tf.keras.models.load_model(base_model_path, custom_objects=custom_objects, compile=False)
     base_layer_dict = dict([(layer.name, layer) for layer in base_model.layers]) 
     # Loop through actual model and see if names are matching, set weights in case they are
     for layer in new_model.layers:

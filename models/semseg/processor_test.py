@@ -6,6 +6,7 @@ from common.utils import Config, Logger, to_3channel
 from models.semseg.params import SemsegParams
 from models.semseg.processor import ProcessImages
 from data.label_spec import SEMSEG_CLASS_MAPPING
+from numba.typed import List
 
 
 class TestProcessors:
@@ -41,11 +42,13 @@ class TestProcessors:
 
         for i, input_data in enumerate(batch_x):
             assert len(input_data) > 0
-            cls_items = list(SEMSEG_CLASS_MAPPING.items())
+            cls_items = List(SEMSEG_CLASS_MAPPING.items())
             nb_classes = len(cls_items)
-            mask_img = to_3channel(batch_y[i], cls_items, threshold=0.999)
+            mask_img = to_3channel(batch_y[0][i], cls_items, threshold=0.999)
+            pos_mask = batch_y[1][i]
 
-            f, (ax1, ax2) = plt.subplots(1, 2)
+            f, (ax1, ax2, ax3) = plt.subplots(1, 3)
             ax1.imshow(cv2.cvtColor(input_data.astype(np.uint8), cv2.COLOR_BGR2RGB))
             ax2.imshow(cv2.cvtColor(mask_img, cv2.COLOR_BGR2RGB))
+            ax3.imshow(pos_mask, cmap="gray", vmin=0.0, vmax=1.0)
             plt.show()

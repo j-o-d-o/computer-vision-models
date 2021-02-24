@@ -5,10 +5,10 @@ Hold all the specific parameters in this python class
 class SemsegParams:
     def __init__(self):
         # Training
-        self.BATCH_SIZE = 6
+        self.BATCH_SIZE = 12
         self.PLANED_EPOCHS = 90
         self.LOAD_PATH = None
-        self.LOAD_WEIGHTS = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-22-204129/tf_model_3/keras.h5"
+        self.LOAD_WEIGHTS = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-23-134354/tf_model_44/keras.h5"
 
         # Input
         self.INPUT_WIDTH = 640 # width of input img in [px]
