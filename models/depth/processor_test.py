@@ -19,27 +19,18 @@ class TestProcessors:
 
         # get one entry from the database
         Config.add_config('./config.ini')
-        collection_details = ("local_mongodb", "labels", "driving_stereo")
-        scenes = [
-            "2018-10-26-15-24-18",
-            "2018-10-19-09-30-39",
-        ]
-        self.train_data = []
-        self.val_data = []
-        self.collection_details = []
+        collection_details = ("local_mongodb", "labels", "nuscenes_train")
 
         # get ids
-        for scene_token in scenes:
-            td, vd = load_ids(
-                collection_details,
-                data_split=(70, 30),
-                limit=100,
-                shuffle_data=True,
-                mongodb_filter={"scene_token": scene_token},
-            )
-            self.train_data.append(td)
-            self.val_data.append(vd)
-            self.collection_details.append(collection_details)
+        td, vd = load_ids(
+            collection_details,
+            data_split=(70, 30),
+            limit=100,
+            shuffle_data=True,
+        )
+        self.train_data = [td]
+        self.val_data = [vd]
+        self.collection_details = [collection_details]
 
     def test_process_image(self):
         train_gen = MongoDBGenerator(
@@ -58,5 +49,5 @@ class TestProcessors:
 
                 f, (ax11, ax22) = plt.subplots(2, 1)
                 ax11.imshow(cv2.cvtColor(img_t0.astype(np.uint8), cv2.COLOR_BGR2RGB))
-                ax22.imshow(cv2.cvtColor(cmap_depth(mask_t0, vmin=0.1, vmax=255.0), cv2.COLOR_BGR2RGB))
+                ax22.imshow(cmap_depth(mask_t0, vmin=0.1, vmax=255.0))
                 plt.show()

@@ -11,6 +11,7 @@ from common.utils import Logger, Config
 from models.depth import create_model, Params, ProcessImages
 from models.depth.loss import DepthLoss
 
+
 if __name__ == "__main__":
     Logger.init()
     Logger.remove_file_logger()
@@ -19,31 +20,30 @@ if __name__ == "__main__":
 
     # get one entry from the database
     Config.add_config('./config.ini')
-    con = ("local_mongodb", "labels", "driving_stereo")
-    # con = ("local_mongodb", "labels", "nuscenes_train")
+    # con = ("local_mongodb", "labels", "driving_stereo")
+    con = ("local_mongodb", "labels", "nuscenes_train")
 
     td, vd = load_ids(
         con,
-        data_split=(96, 4),
+        data_split=(90, 10),
         shuffle_data=True
     )
     train_data = [td]
     val_data = [vd]
     collection_details = [con]
 
-    processors = [ProcessImages(params)]
     train_gen = MongoDBGenerator(
         collection_details,
         train_data,
         batch_size=params.BATCH_SIZE,
-        processors=processors,
+        processors=[ProcessImages(params)],
         shuffle_data=True
     )
     val_gen = MongoDBGenerator(
         collection_details,
         val_data,
         batch_size=params.BATCH_SIZE,
-        processors=processors,
+        processors=[ProcessImages(params, False)],
         shuffle_data=True
     )
 

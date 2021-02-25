@@ -41,14 +41,13 @@ def encoder(filters: int, input_tensor: tf.Tensor, filter_scaling=2.0, output_sc
     fms.append(x)
 
     for i in range(len(fms) - 2, -1, -1):
-        filters = int(filters // filter_scaling)
         fms[i] = Conv2D(filters, (3, 3), padding="same", name=f"{namescope}conv2d_up1_{i}")(fms[i])
         fms[i] = BatchNormalization(name=f"{namescope}batchnorm_up1_{i}")(fms[i])
         fms[i] = ReLU()(fms[i])
         x = upsample_block(f"{namescope}up_{i}", x, fms[i], filters)
+        filters = int(filters // filter_scaling)
 
     if not output_scaled_down:
-        filters = int(filters // filter_scaling)
         fm_f = Conv2D(filters, (3, 3), padding="same", name=f"{namescope}conv2d_up1_to_org")(input_tensor)
         fm_f = BatchNormalization(name=f"{namescope}batchnorm_up1_to_org")(fm_f)
         fm_f = ReLU()(fm_f)
