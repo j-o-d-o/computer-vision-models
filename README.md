@@ -34,6 +34,7 @@ Dont forget to plugin the Coral USB Accelerator :)
 
 ### Spotty support
 Train on AWS with https://github.com/spotty-cloud/spotty. To have a working mongodb setup these steps should be done:
+- Install spotty cli with `pip install spotty`
 - Create a on-demand instance with a volume size that fits all the training data
 - Install mongodb for the operating system you are using
 - In /etc/mongod.conf make sure that bindIp: 0.0.0.0 to allow access outside of localhost
