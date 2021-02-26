@@ -32,6 +32,14 @@ docker run -it --rm
 ### EdgeTpu support
 Dont forget to plugin the Coral USB Accelerator :)
 
+### Spotty support
+Train on AWS with https://github.com/spotty-cloud/spotty. To have a working mongodb setup these steps should be done:
+- Create a on-demand instance with a volume size that fits all the training data
+- Install mongodb for the operating system you are using
+- In /etc/mongod.conf make sure that bindIp: 0.0.0.0 to allow access outside of localhost
+- On the outbound rules in the security group allow traffic (specifally port 27017) from inside the VPC
+- Add the local IP to the [aws_mongodb] config in config.ini and use the aws_config in train.py
+
 ## Folder structure
 Overview of the folder structure and it's contents. A README.md in each folder provides more detailed documentation.
 #### common
