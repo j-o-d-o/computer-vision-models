@@ -2,15 +2,15 @@ import tensorflow as tf
 import cv2
 import numpy as np
 from tensorflow.keras.losses import Loss, categorical_crossentropy
-import pygame
-from common.utils import cmap_depth, to_3channel
+# import pygame
+from numba.typed import List
+from common.utils import to_3channel
 from data.label_spec import SEMSEG_CLASS_MAPPING
-from models.dmds_ref.regularizers import joint_bilateral_smoothing
 
 
 class SemsegLoss():
     def __init__(self, save_path=None):
-        self.display = pygame.display.set_mode((640, 256*3), pygame.HWSURFACE | pygame.DOUBLEBUF)
+        # self.display = pygame.display.set_mode((640, 256*3), pygame.HWSURFACE | pygame.DOUBLEBUF)
         self.save_path = save_path
         self.step_counter = 0
         self.metrics = {
@@ -18,21 +18,21 @@ class SemsegLoss():
             "focal_tversky": tf.keras.metrics.Mean("focal_tversky")
         }
 
-    def _show_semseg(self, inp, y_true, y_pred):
-        inp_img = cv2.cvtColor(inp[0].numpy().astype(np.uint8), cv2.COLOR_BGR2RGB).swapaxes(0, 1)
-        surface_img = pygame.surfarray.make_surface(inp_img)
-        self.display.blit(surface_img, (0, 0))
-        semseg_true = cv2.cvtColor(to_3channel(y_true[0].numpy(), list(SEMSEG_CLASS_MAPPING.items())), cv2.COLOR_BGR2RGB).swapaxes(0, 1)
-        surface_y_true = pygame.surfarray.make_surface(semseg_true)
-        self.display.blit(surface_y_true, (0, 256))
-        semseg_pred = cv2.cvtColor(to_3channel(y_pred[0].numpy(), list(SEMSEG_CLASS_MAPPING.items())), cv2.COLOR_BGR2RGB).swapaxes(0, 1)
-        surface_y_pred = pygame.surfarray.make_surface(semseg_pred)
-        self.display.blit(surface_y_pred, (0, 256*2))
+    # def _show_semseg(self, inp, y_true, y_pred):
+    #     inp_img = cv2.cvtColor(inp[0].numpy().astype(np.uint8), cv2.COLOR_BGR2RGB).swapaxes(0, 1)
+    #     surface_img = pygame.surfarray.make_surface(inp_img)
+    #     self.display.blit(surface_img, (0, 0))
+    #     semseg_true = cv2.cvtColor(to_3channel(y_true[0].numpy(), List(SEMSEG_CLASS_MAPPING.items())), cv2.COLOR_BGR2RGB).swapaxes(0, 1)
+    #     surface_y_true = pygame.surfarray.make_surface(semseg_true)
+    #     self.display.blit(surface_y_true, (0, 256))
+    #     semseg_pred = cv2.cvtColor(to_3channel(y_pred[0].numpy(), List(SEMSEG_CLASS_MAPPING.items())), cv2.COLOR_BGR2RGB).swapaxes(0, 1)
+    #     surface_y_pred = pygame.surfarray.make_surface(semseg_pred)
+    #     self.display.blit(surface_y_pred, (0, 256*2))
 
-        if self.step_counter % 500 == 0:
-            pygame.image.save(self.display, f"{self.save_path}/train_result_{self.step_counter}.png")
+    #     if self.step_counter % 500 == 0:
+    #         pygame.image.save(self.display, f"{self.save_path}/train_result_{self.step_counter}.png")
 
-        pygame.display.flip()
+    #     pygame.display.flip()
 
     @staticmethod
     def tversky(y_true, y_pred, pos_mask):
@@ -66,7 +66,7 @@ class SemsegLoss():
         loss_sum += focal
         self.metrics["focal_tversky"].update_state(focal)
 
-        self._show_semseg(inp, y_true, y_pred)
+        # self._show_semseg(inp, y_true, y_pred)
         self.step_counter += 1
 
         return loss_sum

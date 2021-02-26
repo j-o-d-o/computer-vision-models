@@ -32,28 +32,31 @@ def hex_to_one_hot(hex_mask, pos_mask, hex_colours):
 
 def to_hex(img):
     """
-    Convert 3 channel representation to single hex channel
+    Convert 3 channel representation to single hex 
+    channel
     """
     img = np.asarray(img, dtype='uint32')
     return (img[:, :, 0] << 16) + (img[:, :, 1] << 8) + img[:, :, 2]
 
 class ProcessImages(IPreProcessor):
-    def __init__(self, params: SemsegParams):
+    def __init__(self, params: SemsegParams, do_augmentation: bool = True):
         self.params: SemsegParams = params
+        self.do_augmentation = do_augmentation
 
-    def augment(self, img, mask):
-        afine_transform = A.Compose([
-            A.HorizontalFlip(p=0.4),
-            A.OneOf([
-                A.GridDistortion(interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
-                A.ElasticTransform(interpolation=cv2.INTER_NEAREST, alpha_affine=10, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
-                A.ShiftScaleRotate(interpolation=cv2.INTER_NEAREST, rotate_limit=10, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
-                A.OpticalDistortion(interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
-            ], p=0.5),
-        ], additional_targets={'mask': 'image'})
-        afine_transformed = afine_transform(image=img, mask=mask)
-        img = afine_transformed["image"]
-        mask = afine_transformed["mask"]
+    def augment(self, img, mask, do_affine_transform = True):
+        if do_affine_transform:
+            afine_transform = A.Compose([
+                A.HorizontalFlip(p=0.4),
+                A.OneOf([
+                    A.GridDistortion(interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
+                    A.ElasticTransform(interpolation=cv2.INTER_NEAREST, alpha_affine=10, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
+                    A.ShiftScaleRotate(interpolation=cv2.INTER_NEAREST, shift_limit=0.035, rotate_limit=5, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
+                    A.OpticalDistortion(interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
+                ], p=0.5),
+            ], additional_targets={'mask': 'image'})
+            afine_transformed = afine_transform(image=img, mask=mask)
+            img = afine_transformed["image"]
+            mask = afine_transformed["mask"]
 
         transform = A.Compose([
             A.IAAAdditiveGaussianNoise(p=0.05),
@@ -92,7 +95,8 @@ class ProcessImages(IPreProcessor):
         mask_img, _ = resize_img(mask_img, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
 
         # augment and resize mask to real size
-        input_data, mask_img = self.augment(input_data, mask_img)
+        if self.do_augmentation:
+            input_data, mask_img = self.augment(input_data, mask_img)
         mask_img, _ = resize_img(mask_img, self.params.MASK_WIDTH, self.params.MASK_HEIGHT, offset_bottom=0, interpolation=cv2.INTER_NEAREST)
 
         # one hot encode based on class mapping from semseg spec

@@ -18,13 +18,13 @@ if __name__ == "__main__":
     params = SemsegParams()
 
     Config.add_config('./config.ini')
-    collection_details = ("local_mongodb", "labels", "comma10k")
+    collection_details = ("aws_mongodb", "labels", "comma10k")
 
     # Create Data Generators
     train_data, val_data = load_ids(
         collection_details,
         data_split=(84, 16),
-        shuffle_data=True,
+        shuffle_data=True
     )
 
     processors = [ProcessImages(params)]
@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     # Create Model
     storage_path = "./trained_models/semseg_comma10k_augment_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
-    opt = optimizers.Adam(lr=0.0004, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
     loss = SemsegLoss(save_path=storage_path)
 
     if params.LOAD_PATH is not None:
@@ -59,6 +59,7 @@ if __name__ == "__main__":
     model.summary()
     # for debugging custom loss or layers, set to True
     model.run_eagerly = True
+    model.init_save_dir(storage_path + "/images")
 
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
     callbacks = [SaveToStorage(storage_path, model, True), tensorboard_callback]
