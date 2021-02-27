@@ -8,6 +8,7 @@ project:
       - tmp/*
       - dependencies/*
       - .pytest_cache/*
+      - trained_models/*
 
 containers:
   - projectDir: /workspace/computer-vision-models
@@ -24,7 +25,7 @@ instances:
     provider: aws
     parameters:
       region: eu-west-1
-      instanceType: p2.xlarge
+      instanceType: p3.2xlarge
       availabilityZone: eu-west-1c
       spotInstance: true
       dockerDataRoot: /docker

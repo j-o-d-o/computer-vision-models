@@ -23,23 +23,22 @@ if __name__ == "__main__":
     # Create Data Generators
     train_data, val_data = load_ids(
         collection_details,
-        data_split=(84, 16),
+        data_split=(85, 15),
         shuffle_data=True
     )
 
-    processors = [ProcessImages(params)]
     train_gen = MongoDBGenerator(
         [collection_details],
         [train_data],
         batch_size=params.BATCH_SIZE,
-        processors=processors,
+        processors=[ProcessImages(params, 9)],
         shuffle_data=True
     )
     val_gen = MongoDBGenerator(
         [collection_details],
         [val_data],
         batch_size=params.BATCH_SIZE,
-        processors=processors,
+        processors=[ProcessImages(params)],
         shuffle_data=True
     )
 

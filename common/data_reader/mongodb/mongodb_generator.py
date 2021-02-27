@@ -204,6 +204,7 @@ class MongoDBGenerator(BaseDataGenerator):
         """
         Called after each epoch
         """
+        self.epoch_nb += 1
         shuffle(self.doc_ids)
         if self.shuffle_data:
             for i in range(len(self.doc_ids)):

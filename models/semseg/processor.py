@@ -39,9 +39,9 @@ def to_hex(img):
     return (img[:, :, 0] << 16) + (img[:, :, 1] << 8) + img[:, :, 2]
 
 class ProcessImages(IPreProcessor):
-    def __init__(self, params: SemsegParams, do_augmentation: bool = True):
+    def __init__(self, params: SemsegParams, augment_from_epoch: int = None):
         self.params: SemsegParams = params
-        self.do_augmentation = do_augmentation
+        self.augment_from_epoch = augment_from_epoch
 
     def augment(self, img, mask, do_affine_transform = True):
         if do_affine_transform:
@@ -95,7 +95,7 @@ class ProcessImages(IPreProcessor):
         mask_img, _ = resize_img(mask_img, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
 
         # augment and resize mask to real size
-        if self.do_augmentation:
+        if self.augment_from_epoch is not None and piped_params["epoch"] >= self.augment_from_epoch:
             input_data, mask_img = self.augment(input_data, mask_img)
         mask_img, _ = resize_img(mask_img, self.params.MASK_WIDTH, self.params.MASK_HEIGHT, offset_bottom=0, interpolation=cv2.INTER_NEAREST)
 

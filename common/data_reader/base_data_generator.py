@@ -17,6 +17,7 @@ class BaseDataGenerator(tf.keras.utils.Sequence):
         """
         self.batch_size = batch_size
         self.processors = processors
+        self.epoch_nb = 0 # will be increased in the generators
 
     def add_processors(self, processors: list):
         """
@@ -36,7 +37,7 @@ class BaseDataGenerator(tf.keras.utils.Sequence):
         for data in batch:
             input_data = None
             ground_truth = None
-            piped_params = {}
+            piped_params = { "epoch": self.epoch_nb }
             raw_data = data
             # process each entry in the batch list one by one
             for processor in self.processors:
