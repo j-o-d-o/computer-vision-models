@@ -15,6 +15,7 @@ def set_weights(base_model_path, new_model, custom_objects = {}):
                 goal_size = layer.get_weights()
                 for i in range(len(goal_size)):
                     if goal_size[i].shape != weights[i].shape:
+                        print(f"Need to resize from {weights[i].shape} to {goal_size[i].shape}")
                         weights[i] = np.resize(weights[i], goal_size[i].shape)
                 layer.set_weights(weights)
             except ValueError as e:

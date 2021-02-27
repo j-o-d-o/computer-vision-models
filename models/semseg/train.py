@@ -18,7 +18,7 @@ if __name__ == "__main__":
     params = SemsegParams()
 
     Config.add_config('./config.ini')
-    collection_details = ("aws_mongodb", "labels", "comma10k")
+    collection_details = ("local_mongodb", "labels", "comma10k")
 
     # Create Data Generators
     train_data, val_data = load_ids(
@@ -31,7 +31,7 @@ if __name__ == "__main__":
         [collection_details],
         [train_data],
         batch_size=params.BATCH_SIZE,
-        processors=[ProcessImages(params, 9)],
+        processors=[ProcessImages(params, 0)],
         shuffle_data=True
     )
     val_gen = MongoDBGenerator(
@@ -47,18 +47,12 @@ if __name__ == "__main__":
     opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
     loss = SemsegLoss(save_path=storage_path)
 
-    if params.LOAD_PATH is not None:
-        with tfmot.quantization.keras.quantize_scope():
-            custom_objects = {"SemsegLoss": loss}
-            model: models.Model = models.load_model(params.LOAD_PATH, custom_objects=custom_objects, compile=False)
-    else:
-        model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH, params.LOAD_WEIGHTS)
-
+    model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH, params.LOAD_WEIGHTS)
+    model.init_save_dir(storage_path + "/images")
     model.compile(optimizer=opt, custom_loss=loss)
     model.summary()
     # for debugging custom loss or layers, set to True
     model.run_eagerly = True
-    model.init_save_dir(storage_path + "/images")
 
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
     callbacks = [SaveToStorage(storage_path, model, True), tensorboard_callback]
