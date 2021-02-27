@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 
 def set_weights(base_model_path, new_model, custom_objects = {}):
@@ -11,6 +12,10 @@ def set_weights(base_model_path, new_model, custom_objects = {}):
             print(f"Setting weights for {layer.name}")
             try:
                 weights = base_layer_dict[layer.name].get_weights()
+                goal_size = layer.get_weights()
+                for i in range(len(goal_size)):
+                    if goal_size[i].shape != weights[i].shape:
+                        weights[i] = np.resize(weights[i], goal_size[i].shape)
                 layer.set_weights(weights)
             except ValueError as e:
                 print(f"ValueError: {e}")
