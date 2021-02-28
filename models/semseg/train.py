@@ -7,8 +7,8 @@ from tensorflow.keras import optimizers, models, metrics
 from datetime import datetime
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.callbacks import SaveToStorage
-from common.utils import Logger, Config
-from models.semseg import create_model, SemsegParams, ProcessImages, SemsegLoss
+from common.utils import Logger, Config, set_weights
+from models.semseg import create_model, SemsegModel, SemsegParams, SemsegLoss, ProcessImages
 
 
 if __name__ == "__main__":
@@ -31,7 +31,7 @@ if __name__ == "__main__":
         [collection_details],
         [train_data],
         batch_size=params.BATCH_SIZE,
-        processors=[ProcessImages(params, 0)],
+        processors=[ProcessImages(params, 5)],
         shuffle_data=True
     )
     val_gen = MongoDBGenerator(
@@ -47,9 +47,13 @@ if __name__ == "__main__":
     opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
     loss = SemsegLoss(save_path=storage_path)
 
-    model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH, params.LOAD_WEIGHTS)
+    model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
     model.init_save_dir(storage_path + "/images")
     model.compile(optimizer=opt, custom_loss=loss)
+
+    if params.LOAD_WEIGHTS is not None:
+        set_weights.set_weights(params.LOAD_WEIGHTS, model, force_resize=True, custom_objects={"SemsegModel": SemsegModel})
+
     model.summary()
     # for debugging custom loss or layers, set to True
     model.run_eagerly = True

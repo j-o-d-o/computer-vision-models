@@ -23,14 +23,14 @@ if __name__ == "__main__":
     parser.add_argument("--collection", type=str, default="comma10k", help="MongoDB collection")
     parser.add_argument("--img_width", type=int, default=640, help="Width of image, must be model input")
     parser.add_argument("--img_height", type=int, default=256, help="Width of image, must be model input")
-    parser.add_argument("--offset_bottom", type=int, default=-120, help="Offset from the bottom in orignal image scale")
+    parser.add_argument("--offset_bottom", type=int, default=0, help="Offset from the bottom in orignal image scale")
     parser.add_argument("--model_path", type=str, default="/path/to/tf_model_x/model_quant_edgetpu.tflite", help="Path to a tensorflow model folder")
     parser.add_argument("--use_edge_tpu", action="store_true", help="EdgeTpu should be used for inference")
     args = parser.parse_args()
 
     # For debugging force a value here
     args.use_edge_tpu = True
-    args.model_path = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-22-194858/tf_model_0/model_quant_edgetpu.tflite"
+    args.model_path = "/home/computer-vision-models/tmp/model_quant_edgetpu.tflite"
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]

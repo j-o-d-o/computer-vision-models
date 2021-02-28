@@ -8,6 +8,7 @@ import argparse
 from pymongo import MongoClient
 from common.utils import resize_img
 from common.utils.tflite_convert import tflite_convert
+from models.semseg.model import SemsegModel
 
 
 def create_dataset(input_shape):
@@ -17,7 +18,7 @@ def create_dataset(input_shape):
     # Create sample dataset for post training quantization
     client = MongoClient("mongodb://localhost:27017")
     collection = client["labels"]["comma10k"]
-    documents = collection.find({}).limit(400)
+    documents = collection.find({}).limit(50)
 
     documents_list = list(documents)
     assert(len(documents_list) > 0)
@@ -39,9 +40,9 @@ if __name__ == "__main__":
 
     args.quantize = True
     args.compile_edge_tpu = True
-    args.model_path = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-22-194858/tf_model_0/keras.h5"
+    args.model_path = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-27-20180/tf_model_7/keras.h5"
 
-    model = tf.keras.models.load_model(args.model_path, compile=False)
+    model = tf.keras.models.load_model(args.model_path, custom_objects={"SemsegModel": SemsegModel}, compile=False)
 
     save_dir = args.model_path
     if save_dir.lower().endswith(".h5"):

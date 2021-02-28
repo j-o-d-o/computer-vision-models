@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras.layers import BatchNormalization, LayerNormalization, ReLU, Conv2D, DepthwiseConv2D, Add, UpSampling2D, Concatenate, Conv2DTranspose
 from tensorflow.keras.initializers import Constant, GlorotNormal
+from tensorflow.keras.regularizers import l2
 
 
 def bottle_neck_block(name_prefix: str, inputs: tf.Tensor, filters: int, expansion_factor: int = 6, dilation_rate: int = 1, downsample: bool =False) -> tf.Tensor:
@@ -11,24 +12,24 @@ def bottle_neck_block(name_prefix: str, inputs: tf.Tensor, filters: int, expansi
     skip = inputs
     # Expansion
     x = Conv2D(filters * expansion_factor, kernel_size=1, use_bias=False,
-        padding='same', name=f"{name_prefix}conv2d-0_bottelneck")(inputs)
-    x = BatchNormalization(name=f"{name_prefix}batchnorm-0_bottelneck")(x)
-    x = ReLU()(x)
+        padding='same', name=f"{name_prefix}conv2d/0", kernel_regularizer=l2(l=0.0001))(inputs)
+    x = BatchNormalization(name=f"{name_prefix}batchnorm/0")(x)
+    x = ReLU(6.0)(x)
     # Convolution
     x = DepthwiseConv2D(kernel_size=3, strides=stride, dilation_rate=dilation_rate,
-        use_bias=False, padding='same', name=f"{name_prefix}conv2d-1_bottelneck")(x)
-    x = BatchNormalization(name=f"{name_prefix}batchnorm-1_bottelneck")(x)
-    x = ReLU()(x)
+        use_bias=False, padding='same', name=f"{name_prefix}conv2d/1", kernel_regularizer=l2(l=0.0001))(x)
+    x = BatchNormalization(name=f"{name_prefix}batchnorm/1")(x)
+    x = ReLU(6.0)(x)
     # Project
-    x = Conv2D(filters, kernel_size=1, use_bias=False, padding='same', name=f"{name_prefix}conv2d-2_bottelneck")(x)
-    x = BatchNormalization(name=f"{name_prefix}batchnorm-2_bottelneck")(x)
+    x = Conv2D(filters, kernel_size=1, use_bias=False, padding='same', name=f"{name_prefix}conv2d/2", kernel_regularizer=l2(l=0.0001))(x)
+    x = BatchNormalization(name=f"{name_prefix}batchnorm/2")(x)
     # Residual connection
     input_filters = int(inputs.shape[-1])
     if downsample:
-        skip = Conv2D(filters, kernel_size=3, strides=2, padding="same", name=f"{name_prefix}conv2d-3_bottelneck")(skip)
+        skip = Conv2D(filters, kernel_size=3, strides=2, padding="same", name=f"{name_prefix}conv2d/3", kernel_regularizer=l2(l=0.0001))(skip)
     elif input_filters != filters:
-        skip = Conv2D(filters, (1, 1), padding="same", name=f"{name_prefix}skip_bottelneck")(skip)
-    x = Add(name=f"bottelneck_out_{name_prefix}")([skip, x])
+        skip = Conv2D(filters, (1, 1), padding="same", name=f"{name_prefix}skip", kernel_regularizer=l2(l=0.0001))(skip)
+    x = Add(name=f"{name_prefix}add")([skip, x])
     return x
 
 
@@ -37,16 +38,16 @@ def upsample_block(name_prefix: str, inputs: tf.Tensor, concat: tf.Tensor, filte
     Upsample block will upsample one tensor x2 and concatenate with another tensor of the size
     """
     # Upsample inputs
-    x = Conv2DTranspose(filters, (2, 2), strides=(2, 2), use_bias=False, padding='same')(inputs)
-    x = BatchNormalization(name=f"{name_prefix}_batchnorm-0_upsample")(x)
-    x = ReLU()(x)
+    x = Conv2DTranspose(filters, (2, 2), strides=(2, 2), use_bias=False, padding='same', name=f"{name_prefix}conv2dtranspose", kernel_regularizer=l2(l=0.0001))(inputs)
+    x = BatchNormalization(name=f"{name_prefix}batchnorm/0")(x)
+    x = ReLU(6.0)(x)
     # Concatenate
-    concat = Conv2D(filters, use_bias=False, kernel_size=1, name=f"{name_prefix}conv2d-1_upsample")(concat)
-    concat = BatchNormalization(name=f"{name_prefix}batchnorm-1_upsample")(concat)
-    concat = ReLU()(concat)
+    concat = Conv2D(filters, use_bias=False, kernel_size=1, name=f"{name_prefix}conv2d/1", kernel_regularizer=l2(l=0.0001))(concat)
+    concat = BatchNormalization(name=f"{name_prefix}batchnorm/1")(concat)
+    concat = ReLU(6.0)(concat)
     x = Concatenate()([x, concat])
     # Conv
-    x = Conv2D(filters, kernel_size=3, use_bias=False, padding='same', name=f"{name_prefix}conv2d-2_upsample")(x)
-    x = BatchNormalization(name=f"{name_prefix}batchnorm-2_upsample")(x)
-    x = ReLU(name=f"{name_prefix}upsample_out")(x)
+    x = Conv2D(filters, kernel_size=3, use_bias=False, padding='same', name=f"{name_prefix}conv2d/2", kernel_regularizer=l2(l=0.0001))(x)
+    x = BatchNormalization(name=f"{name_prefix}batchnorm/2")(x)
+    x = ReLU(6.0, name=f"{name_prefix}out")(x)
     return x

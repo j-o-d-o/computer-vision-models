@@ -4,18 +4,14 @@ import numpy as np
 from tensorflow.keras.layers import Input, Concatenate, Conv2D, BatchNormalization, ReLU
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
-from tensorflow.keras.initializers import Constant
 from data.label_spec import SEMSEG_CLASS_MAPPING
-from common.layers import bottle_neck_block, upsample_block, encoder
+from common.layers import bottle_neck_block, upsample_block
 from numba.typed import List
-from tensorflow.keras.utils import plot_model
-from models.semseg import SemsegParams, create_dataset
-from models.depth import create_model as create_depth_model
-from common.utils.tflite_convert import tflite_convert
-from common.utils.set_weights import set_weights
+from models.semseg import SemsegParams
 from tensorflow.python.eager import backprop
 from tensorflow.python.keras.engine import data_adapter
 from common.utils import to_3channel
+from tensorflow.python.keras.engine import compile_utils
 
 
 class SemsegModel(Model):
@@ -24,13 +20,20 @@ class SemsegModel(Model):
         self.file_writer = tf.summary.create_file_writer(save_dir)
         self.train_step_counter = 0
 
+    def update_custom_metrics(self, y_true, y_pred, pos_mask):
+        ce_value = tf.reduce_sum(tf.keras.metrics.categorical_crossentropy(y_true, y_pred) * pos_mask) / tf.reduce_sum(pos_mask)
+        self.custom_metrics[0].update_state(ce_value)
+
     def compile(self, optimizer, custom_loss):
         super().compile(optimizer)
         self.custom_loss = custom_loss
+        self.custom_metrics = [tf.keras.metrics.Mean("ce")]
 
     @property
     def metrics(self):
-        return list(self.custom_loss.metrics.values())
+        return_val = list(self.custom_loss.metrics.values())
+        return_val += self.custom_metrics
+        return return_val
 
     def train_step(self, data):
         self.train_step_counter += 1
@@ -56,10 +59,8 @@ class SemsegModel(Model):
                 tf.summary.image("true", np.expand_dims(semseg_true_img, axis=0), max_outputs=80)
                 tf.summary.image("pred", np.expand_dims(semseg_pred_img, axis=0), max_outputs=80)
 
-        return_val = {}
-        for key, item in self.custom_loss.metrics.items():
-            return_val[key] = item.result()
-        return return_val
+        self.update_custom_metrics(semseg_mask, semseg_pred, pos_mask)
+        return {m.name: m.result() for m in self.metrics}
 
     def test_step(self, data):
         # self.train_step_counter = 0
@@ -71,13 +72,11 @@ class SemsegModel(Model):
         semseg_pred = self(input_data, training=False)
         loss_val = self.custom_loss.calc(input_data, semseg_mask, pos_mask, semseg_pred)
 
-        return_val = {}
-        for key, item in self.custom_loss.metrics.items():
-            return_val[f"{key}_val"] = item.result()
-        return return_val
+        self.update_custom_metrics(semseg_mask, semseg_pred, pos_mask)
+        return {m.name: m.result() for m in self.metrics}
 
 
-def create_model(input_height: int, input_width: int, weights_path: str = None) -> tf.keras.Model:
+def create_model(input_height: int, input_width: int) -> tf.keras.Model:
     """
     Create a semseg model
     :param input_height: Height of the input image
@@ -86,23 +85,70 @@ def create_model(input_height: int, input_width: int, weights_path: str = None) 
     """
     inp = Input(shape=(input_height, input_width, 3))
     inp_rescaled = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(inp)
+    fms = [inp_rescaled]
+    namescope = "semseg/"
+    filters = 6
 
-    x, _ = encoder(8, inp_rescaled)
-    x = Conv2D(8, (3, 3), padding="same", name="semseg_head_conv2d", use_bias=False)(x)
-    x = BatchNormalization()(x)
-    x = ReLU()(x)
-    semseg_map = Conv2D(len(SEMSEG_CLASS_MAPPING), kernel_size=1, name="semseg_out", activation="sigmoid", kernel_regularizer=l2(l=0.0001))(x)
+    # Downsample
+    # ----------------------------
+    x = Conv2D(filters, 5, padding="same", name=f"{namescope}initial_downsample", strides=(2, 2), kernel_regularizer=l2(l=0.0001))(inp_rescaled)
+    x = BatchNormalization(name=f"{namescope}initial_batchnorm")(x)
+    x = ReLU(6., name=f"{namescope}initial_acitvation")(x)
+    fms.append(x)
 
-    model = SemsegModel(inputs=[inp], outputs=semseg_map)
-    if weights_path is not None:
-        set_weights(weights_path, model, {"SemsegModel": SemsegModel})
+    x = bottle_neck_block(f"{namescope}downsample_0/", x, filters)
+    x = bottle_neck_block(f"{namescope}downsample_1/", x, filters, downsample = True)
+    fms.append(x)
+    filters = int(filters * 2)
 
-    return model
+    x = bottle_neck_block(f"{namescope}downsample_2/", x, filters)
+    x = bottle_neck_block(f"{namescope}downsample_3/", x, filters, downsample = True)
+    fms.append(x)
+    filters = int(filters * 2)
+
+    x = bottle_neck_block(f"{namescope}downsample_4/", x, filters)
+    x = bottle_neck_block(f"{namescope}downsample_5/", x, filters, downsample = True)
+    filters = int(filters * 2)
+
+    # Dilation (to avoid further downsampling)
+    # ----------------------------
+    dilation_rates = [3, 6, 9, 12]
+    concat_tensors = []
+    x = Conv2D(filters, kernel_size=1, name=f"{namescope}start_dilation_1x1", kernel_regularizer=l2(l=0.0001))(x)
+    concat_tensors.append(x)
+    for i, rate in enumerate(dilation_rates):
+        x = bottle_neck_block(f"{namescope}dilation_{i}", x, filters)
+        x = BatchNormalization(name=f"{namescope}dilation_batchnorm_{i}")(x)
+        concat_tensors.append(x)
+
+    x = Concatenate(name=f"{namescope}dilation_concat")(concat_tensors)
+    fms.append(x)
+
+    # Upsample
+    # ----------------------------
+    for i in range(len(fms) - 2, -1, -1):
+        filters = int(filters // 2)
+        fms[i] = Conv2D(filters, (3, 3), padding="same", name=f"{namescope}conv2d_up_{i}", kernel_regularizer=l2(l=0.0001))(fms[i])
+        fms[i] = BatchNormalization(name=f"{namescope}batchnorm_up_{i}")(fms[i])
+        fms[i] = ReLU(6.0)(fms[i])
+        x = upsample_block(f"{namescope}upsample_{i}/", x, fms[i], filters)
+
+    # Create Semseg Map
+    # ----------------------------
+    semseg_map = Conv2D(len(SEMSEG_CLASS_MAPPING), kernel_size=1, name="semseg/out", activation="sigmoid", kernel_regularizer=l2(l=0.0001))(x)
+
+    return SemsegModel(inputs=[inp], outputs=semseg_map)
 
 
+# To test model creation and quickly check if edgetpu compiler compiles it correctly
 if __name__ == "__main__":
+    from tensorflow.keras.utils import plot_model
+    from models.semseg import convert
+    from common.utils import set_weights, tflite_convert
+    
     params = SemsegParams()
     model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
+    set_weights.set_weights("/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-27-20180/tf_model_7/keras.h5", model, force_resize=True, custom_objects={"SemsegModel": SemsegModel})
     model.summary()
     plot_model(model, to_file="./tmp/semseg_model.png")
-    tflite_convert(model, "./tmp", True, True, create_dataset(model.input.shape))
+    tflite_convert.tflite_convert(model, "./tmp", True, True, convert.create_dataset(model.input.shape))

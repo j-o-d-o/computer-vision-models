@@ -5,9 +5,9 @@ Hold all the specific parameters in this python class
 class SemsegParams:
     def __init__(self):
         # Training
-        self.BATCH_SIZE = 12
+        self.BATCH_SIZE = 16
         self.PLANED_EPOCHS = 90
-        self.LOAD_WEIGHTS = "keras.h5"
+        self.LOAD_WEIGHTS = "/home/computer-vision-models/keras.h5"
 
         # Input
         self.INPUT_WIDTH = 640 # width of input img in [px]
