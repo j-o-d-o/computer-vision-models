@@ -75,8 +75,9 @@ def to_3channel(raw_mask_output, cls_items, threshold = None, use_weight = False
     flattened_arr = raw_mask_output.reshape((-1, raw_mask_output.shape[2]))
     for i, one_hot_encoded_arr in enumerate(flattened_arr):
         # find index of highest value in the one_hot_encoded_arr
-        cls_idx = np.argmax(one_hot_encoded_arr[:nb_classes])
-        cls_score = min(1.0, max(0.0, one_hot_encoded_arr[cls_idx]))
+        softmax = one_hot_encoded_arr[:nb_classes] / np.sum(one_hot_encoded_arr[:nb_classes])
+        cls_idx = np.argmax(softmax)
+        cls_score = min(1.0, max(0.0, softmax[cls_idx]))
         if threshold is None or cls_score > threshold:
             # convert index to hex value
             cls_score = cls_score if use_weight else 1.0
