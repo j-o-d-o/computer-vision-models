@@ -8,19 +8,22 @@ import numpy as np
 import os
 import cv2
 import pygame
+from pygame.locals import *
 import matplotlib.pyplot as plt
 import argparse
 import time
+from numba.typed import List
 from pymongo import MongoClient
 from common.utils import to_3channel, resize_img
 from data.label_spec import SEMSEG_CLASS_MAPPING
+from models.semseg import SemsegModel
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Inference from tensorflow model")
     parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
     parser.add_argument("--db", type=str, default="labels", help="MongoDB database")
-    parser.add_argument("--collection", type=str, default="comma10k", help="MongoDB collection")
+    parser.add_argument("--collection", type=str, default="nuscenes_train", help="MongoDB collection")
     parser.add_argument("--img_width", type=int, default=640, help="Width of image, must be model input")
     parser.add_argument("--img_height", type=int, default=256, help="Width of image, must be model input")
     parser.add_argument("--offset_bottom", type=int, default=0, help="Offset from the bottom in orignal image scale")
@@ -30,7 +33,7 @@ if __name__ == "__main__":
 
     # For debugging force a value here
     args.use_edge_tpu = True
-    args.model_path = "/home/computer-vision-models/tmp/model_quant_edgetpu.tflite"
+    args.model_path = "/home/computer-vision-models/keras.h5"
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]
@@ -54,7 +57,7 @@ if __name__ == "__main__":
         output_details = interpreter.get_output_details()
     else:
         with tfmot.quantization.keras.quantize_scope():
-            model: tf.keras.models.Model = tf.keras.models.load_model(args.model_path, compile=False)
+            model: tf.keras.models.Model = tf.keras.models.load_model(args.model_path, custom_objects={"SemsegModel": SemsegModel}, compile=False)
         model.summary()
         print("Using Tensorflow")
 
@@ -67,7 +70,7 @@ if __name__ == "__main__":
     # while (cap.isOpened()):
     #     ret, img = cap.read()
 
-    documents = collection.find({}).limit(100)
+    documents = collection.find({})
     for doc in documents:
         decoded_img = np.frombuffer(doc["img"], np.uint8)
         img = cv2.imdecode(decoded_img, cv2.IMREAD_COLOR)
@@ -83,14 +86,21 @@ if __name__ == "__main__":
             elapsed_time = time.time() - start_time
             # The function `get_tensor()` returns a copy of the tensor data. Use `tensor()` in order to get a pointer to the tensor.
             output_data = interpreter.get_tensor(output_details[0]['index'])
-            semseg_img = to_3channel(output_data[0], list(SEMSEG_CLASS_MAPPING.items()))
+            semseg_img = to_3channel(output_data[0], List(SEMSEG_CLASS_MAPPING.items()))
         else:
             img_arr = np.array([img])
             start_time = time.time()
             raw_result = model.predict(img_arr)
-            elapsed_time = time.time() - start_time
+            elapsed_time = time.time() - start_time 
             semseg_img = raw_result[0]
-            semseg_img = to_3channel(semseg_img, list(SEMSEG_CLASS_MAPPING.items()))
+            semseg_img = to_3channel(semseg_img, List(SEMSEG_CLASS_MAPPING.items()), threshold=0.98)
+
+            # # in case we are sure, there is no care parts (e.g. nuscenes) mask these detections out
+            # semseg_img[np.where((semseg_img==[255, 0, 204]).all(axis=2))] = [0, 0, 0]
+            # # somehow the model likes to put non drivable holes in front of us, mask these out
+            # semseg_cut = semseg_img[182:, 240:400, :]
+            # semseg_cut[np.where((semseg_cut==[96, 128, 128]).all(axis=2))] = [0, 0, 0]
+            # semseg_img[182:, 240:400, :] = semseg_cut
 
         print(str(elapsed_time) + " s")
 
@@ -100,6 +110,18 @@ if __name__ == "__main__":
         surface_semseg_mask = pygame.surfarray.make_surface(cv2.cvtColor(resized_semseg_img, cv2.COLOR_BGR2RGB).swapaxes(0, 1))
         display.blit(surface_semseg_mask, (args.img_width, 0))
         pygame.display.flip()
-        # wait till keypress
-        event = pygame.event.wait()
+
+        # Upload mask to dataset
+        # mask_bytes = cv2.imencode('.png', semseg_img)[1].tobytes()
+        # collection.update({"_id" : doc["_id"] }, {"$set" : {"mask": mask_bytes}})
+
+        # wait till space is pressed
+        while True:
+            event = pygame.event.wait()
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == KEYDOWN and event.key == K_SPACE:
+                break
+
     pygame.quit()
