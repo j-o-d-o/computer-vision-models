@@ -85,9 +85,9 @@ def create_model(input_height: int, input_width: int) -> tf.keras.Model:
     """
     inp = Input(shape=(input_height, input_width, 3))
     inp_rescaled = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(inp)
-    fms = [inp_rescaled]
+    fms = [] # [inp_rescaled]
     namescope = "semseg/"
-    filters = 6
+    filters = 8
 
     # Downsample
     # ----------------------------
@@ -127,11 +127,11 @@ def create_model(input_height: int, input_width: int) -> tf.keras.Model:
     # Upsample
     # ----------------------------
     for i in range(len(fms) - 2, -1, -1):
-        filters = int(filters // 2)
         fms[i] = Conv2D(filters, (3, 3), padding="same", name=f"{namescope}conv2d_up_{i}", kernel_regularizer=l2(l=0.0001))(fms[i])
         fms[i] = BatchNormalization(name=f"{namescope}batchnorm_up_{i}")(fms[i])
         fms[i] = ReLU(6.0)(fms[i])
         x = upsample_block(f"{namescope}upsample_{i}/", x, fms[i], filters)
+        filters = int(filters // 2)
 
     # Create Semseg Map
     # ----------------------------
@@ -148,7 +148,7 @@ if __name__ == "__main__":
     
     params = SemsegParams()
     model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
-    set_weights.set_weights("/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-27-20180/tf_model_7/keras.h5", model, force_resize=True, custom_objects={"SemsegModel": SemsegModel})
+    set_weights.set_weights("/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-28-10235/tf_model_54/keras.h5", model, force_resize=True, custom_objects={"SemsegModel": SemsegModel})
     model.summary()
     plot_model(model, to_file="./tmp/semseg_model.png")
     tflite_convert.tflite_convert(model, "./tmp", True, True, convert.create_dataset(model.input.shape))

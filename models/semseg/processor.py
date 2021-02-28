@@ -105,7 +105,7 @@ class ProcessImages(IPreProcessor):
         for _, colour in list(SEMSEG_CLASS_MAPPING.items()):
             hex_colour = (colour[0] << 16) + (colour[1] << 8) + colour[2]
             colours.append(hex_colour)
-        pos_mask = np.ones((self.params.INPUT_HEIGHT, self.params.INPUT_WIDTH), dtype=np.float32)
+        pos_mask = np.ones((self.params.MASK_HEIGHT, self.params.MASK_WIDTH), dtype=np.float32)
         mask_img, pos_mask = hex_to_one_hot(mask_img, pos_mask, colours)
         nb_classes = len(SEMSEG_CLASS_MAPPING)
         ground_truth = to_categorical(mask_img, nb_classes)
