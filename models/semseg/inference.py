@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     # For debugging force a value here
     args.use_edge_tpu = True
-    args.model_path = "/home/computer-vision-models/keras.h5"
+    args.model_path = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-03-01-192420/tf_model_20/model_quant_edgetpu.tflite"
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]
@@ -62,7 +62,7 @@ if __name__ == "__main__":
         print("Using Tensorflow")
 
     # create pygame display to show images
-    display = pygame.display.set_mode((args.img_width * 2, args.img_height), pygame.HWSURFACE | pygame.DOUBLEBUF)
+    display = pygame.display.set_mode((args.img_width, args.img_height * 3), pygame.HWSURFACE | pygame.DOUBLEBUF)
 
     # alternative data source, mp4 video
     # cap = cv2.VideoCapture('/path/to/video.mp4')
@@ -74,6 +74,11 @@ if __name__ == "__main__":
     for doc in documents:
         decoded_img = np.frombuffer(doc["img"], np.uint8)
         img = cv2.imdecode(decoded_img, cv2.IMREAD_COLOR)
+
+        gt_mask = None
+        if doc["mask"] is not None:
+            decoded_mask = np.frombuffer(doc["mask"], np.uint8)
+            gt_mask = cv2.imdecode(decoded_mask, cv2.IMREAD_COLOR)
         
         img, roi = resize_img(img, args.img_width, args.img_height, args.offset_bottom)
 
@@ -107,8 +112,11 @@ if __name__ == "__main__":
         resized_semseg_img = cv2.resize(semseg_img, (args.img_width, args.img_height))
         surface_input_img = pygame.surfarray.make_surface(cv2.cvtColor(img, cv2.COLOR_BGR2RGB).swapaxes(0, 1))
         display.blit(surface_input_img, (0, 0))
+        if gt_mask is not None:
+            surface_input_img = pygame.surfarray.make_surface(cv2.cvtColor(gt_mask, cv2.COLOR_BGR2RGB).swapaxes(0, 1))
+            display.blit(surface_input_img, (0, args.img_height * 1))
         surface_semseg_mask = pygame.surfarray.make_surface(cv2.cvtColor(resized_semseg_img, cv2.COLOR_BGR2RGB).swapaxes(0, 1))
-        display.blit(surface_semseg_mask, (args.img_width, 0))
+        display.blit(surface_semseg_mask, (0, args.img_height * 2))
         pygame.display.flip()
 
         # Upload mask to dataset
