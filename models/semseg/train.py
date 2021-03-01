@@ -23,7 +23,7 @@ if __name__ == "__main__":
     # Create Data Generators
     train_data, val_data = load_ids(
         collection_details,
-        data_split=(85, 15),
+        data_split=(90, 10),
         shuffle_data=True
     )
 
@@ -31,7 +31,7 @@ if __name__ == "__main__":
         [collection_details],
         [train_data],
         batch_size=params.BATCH_SIZE,
-        processors=[ProcessImages(params, 5)],
+        processors=[ProcessImages(params, [30, 60])],
         shuffle_data=True
     )
     val_gen = MongoDBGenerator(
@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     # Create Model
     storage_path = "./trained_models/semseg_comma10k_augment_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
-    opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    opt = optimizers.Adam(lr=0.002, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
     loss = SemsegLoss(save_path=storage_path)
 
     model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     model.compile(optimizer=opt, custom_loss=loss)
 
     if params.LOAD_WEIGHTS is not None:
-        set_weights.set_weights(params.LOAD_WEIGHTS, model, force_resize=True, custom_objects={"SemsegModel": SemsegModel})
+        set_weights.set_weights(params.LOAD_WEIGHTS, model, force_resize=False, custom_objects={"SemsegModel": SemsegModel})
 
     model.summary()
     # for debugging custom loss or layers, set to True

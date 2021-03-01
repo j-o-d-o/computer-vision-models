@@ -20,19 +20,13 @@ class SemsegModel(Model):
         self.file_writer = tf.summary.create_file_writer(save_dir)
         self.train_step_counter = 0
 
-    def update_custom_metrics(self, y_true, y_pred, pos_mask):
-        ce_value = tf.reduce_sum(tf.keras.metrics.categorical_crossentropy(y_true, y_pred) * pos_mask) / tf.reduce_sum(pos_mask)
-        self.custom_metrics[0].update_state(ce_value)
-
     def compile(self, optimizer, custom_loss):
         super().compile(optimizer)
         self.custom_loss = custom_loss
-        self.custom_metrics = [tf.keras.metrics.Mean("ce")]
 
     @property
     def metrics(self):
         return_val = list(self.custom_loss.metrics.values())
-        return_val += self.custom_metrics
         return return_val
 
     def train_step(self, data):
@@ -59,7 +53,6 @@ class SemsegModel(Model):
                 tf.summary.image("true", np.expand_dims(semseg_true_img, axis=0), max_outputs=80)
                 tf.summary.image("pred", np.expand_dims(semseg_pred_img, axis=0), max_outputs=80)
 
-        self.update_custom_metrics(semseg_mask, semseg_pred, pos_mask)
         return {m.name: m.result() for m in self.metrics}
 
     def test_step(self, data):
@@ -72,7 +65,6 @@ class SemsegModel(Model):
         semseg_pred = self(input_data, training=False)
         loss_val = self.custom_loss.calc(input_data, semseg_mask, pos_mask, semseg_pred)
 
-        self.update_custom_metrics(semseg_mask, semseg_pred, pos_mask)
         return {m.name: m.result() for m in self.metrics}
 
 
@@ -127,15 +119,18 @@ def create_model(input_height: int, input_width: int) -> tf.keras.Model:
     # Upsample
     # ----------------------------
     for i in range(len(fms) - 2, -1, -1):
+        filters = int(filters // 2)
         fms[i] = Conv2D(filters, (3, 3), padding="same", name=f"{namescope}conv2d_up_{i}", kernel_regularizer=l2(l=0.0001))(fms[i])
         fms[i] = BatchNormalization(name=f"{namescope}batchnorm_up_{i}")(fms[i])
         fms[i] = ReLU(6.0)(fms[i])
         x = upsample_block(f"{namescope}upsample_{i}/", x, fms[i], filters)
-        filters = int(filters // 2)
 
     # Create Semseg Map
     # ----------------------------
-    semseg_map = Conv2D(len(SEMSEG_CLASS_MAPPING), kernel_size=1, name="semseg/out", activation="sigmoid", kernel_regularizer=l2(l=0.0001))(x)
+    x = Conv2D(8, (3, 3), padding="same", name=f"{namescope}semseghead_conv2d", kernel_regularizer=l2(l=0.0001))(x)
+    x = BatchNormalization(name=f"{namescope}semseghead_batchnorm")(x)
+    x = ReLU(6.0)(x)
+    semseg_map = Conv2D(len(SEMSEG_CLASS_MAPPING), kernel_size=1, name=f"{namescope}out", activation="sigmoid", kernel_regularizer=l2(l=0.0001))(x)
 
     return SemsegModel(inputs=[inp], outputs=semseg_map)
 
@@ -148,7 +143,7 @@ if __name__ == "__main__":
     
     params = SemsegParams()
     model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
-    set_weights.set_weights("/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-28-10235/tf_model_54/keras.h5", model, force_resize=True, custom_objects={"SemsegModel": SemsegModel})
+    set_weights.set_weights("/home/computer-vision-models/keras.h5", model, force_resize=False, custom_objects={"SemsegModel": SemsegModel})
     model.summary()
     plot_model(model, to_file="./tmp/semseg_model.png")
     tflite_convert.tflite_convert(model, "./tmp", True, True, convert.create_dataset(model.input.shape))

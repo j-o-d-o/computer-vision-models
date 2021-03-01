@@ -35,9 +35,11 @@ class SemsegLoss():
 
     @staticmethod
     def tversky(y_true, y_pred, pos_mask):
+        # 0: road, 1: lanemarkings, 2: undrivable, 3: movable, 4: ego_car
+        weights = tf.constant([0.8, 1.6, 0.4, 1.2, 1.0])
         smooth = 1.0
-        y_true_masked = y_true * pos_mask
-        y_pred_masked = y_pred * pos_mask
+        y_true_masked = y_true * pos_mask * weights
+        y_pred_masked = y_pred * pos_mask * weights
         y_true_pos = tf.reshape(y_true_masked, [-1])
         y_pred_pos = tf.reshape(y_pred_masked, [-1])
         true_pos = tf.reduce_sum(y_true_pos * y_pred_pos)

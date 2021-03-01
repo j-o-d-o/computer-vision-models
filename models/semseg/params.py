@@ -6,8 +6,8 @@ class SemsegParams:
     def __init__(self):
         # Training
         self.BATCH_SIZE = 16
-        self.PLANED_EPOCHS = 90
-        self.LOAD_WEIGHTS = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-28-10235/tf_model_54/keras.h5"
+        self.PLANED_EPOCHS = 300
+        self.LOAD_WEIGHTS = "/home/computer-vision-models/keras.h5"
 
         # Input
         self.INPUT_WIDTH = 640 # width of input img in [px]
