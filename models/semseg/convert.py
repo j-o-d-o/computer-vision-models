@@ -8,7 +8,6 @@ import argparse
 from pymongo import MongoClient
 from common.utils import resize_img
 from common.utils.tflite_convert import tflite_convert
-from models.semseg.model import SemsegModel
 
 
 def create_dataset(input_shape):
@@ -42,7 +41,7 @@ if __name__ == "__main__":
     args.compile_edge_tpu = True
     args.model_path = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-27-20180/tf_model_7/keras.h5"
 
-    model = tf.keras.models.load_model(args.model_path, custom_objects={"SemsegModel": SemsegModel}, compile=False)
+    model = tf.keras.models.load_model(args.model_path, compile=False)
 
     save_dir = args.model_path
     if save_dir.lower().endswith(".h5"):

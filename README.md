@@ -14,12 +14,12 @@ Check the `Dockerfile` to see what kind of dependencies are installed for the do
 # allow access to screen from docker container
 xhost local:root
 
-docker run -it --rm 
-  --gpus all
-  --network="host"
-  --privileged -v /dev/bus/usb:/dev/bus/usb
-  -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix
-  --mount "type=bind,source=$(pwd),target=/home/computer-vision-models"
+docker run -it --rm \
+  --gpus all \
+  --network="host" \
+  --privileged -v /dev/bus/usb:/dev/bus/usb \
+  -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix \
+  --mount "type=bind,source=$(pwd),target=/home/computer-vision-models" \
   computer-vision-models bash
 
 # access gpus

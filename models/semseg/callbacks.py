@@ -16,15 +16,16 @@ class ShowPygame():
     """
     Callback to show results in pygame window, custom callback called in custom train step
     """
-    def __init__(self, storage_path: str):
+    def __init__(self, storage_path: str, params):
         """
         :param storage_path: path to directory were the image data should be stored
         """
+        self.params = params
         self._storage_path = storage_path
         if not os.path.exists(self._storage_path):
             print("Storage folder does not exist yet, creating: " + self._storage_path)
             os.makedirs(self._storage_path)
-        self.display = pygame.display.set_mode((640, int(256*1.5)), pygame.HWSURFACE | pygame.DOUBLEBUF)
+        self.display = pygame.display.set_mode((self.params.INPUT_WIDTH, int(self.params.INPUT_HEIGHT + self.params.MASK_HEIGHT*2)), pygame.HWSURFACE | pygame.DOUBLEBUF)
         self.step_counter = 0
 
     def show_semseg(self, inp, y_true, y_pred):
@@ -33,10 +34,10 @@ class ShowPygame():
         self.display.blit(surface_img, (0, 0))
         semseg_true = cv2.cvtColor(to_3channel(y_true[0].numpy(), List(SEMSEG_CLASS_MAPPING.items())), cv2.COLOR_BGR2RGB).swapaxes(0, 1)
         surface_y_true = pygame.surfarray.make_surface(semseg_true)
-        self.display.blit(surface_y_true, (0, 256))
+        self.display.blit(surface_y_true, (0, self.params.MASK_HEIGHT))
         semseg_pred = cv2.cvtColor(to_3channel(y_pred[0].numpy(), List(SEMSEG_CLASS_MAPPING.items())), cv2.COLOR_BGR2RGB).swapaxes(0, 1)
         surface_y_pred = pygame.surfarray.make_surface(semseg_pred)
-        self.display.blit(surface_y_pred, (320, 256))
+        self.display.blit(surface_y_pred, (0, self.params.MASK_HEIGHT*2))
 
         self.step_counter += 1
         if self.step_counter % 2000 == 0:

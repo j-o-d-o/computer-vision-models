@@ -62,7 +62,7 @@ if __name__ == "__main__":
     loss = SemsegLoss(params.CLASS_WEIGHTS)
 
     model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
-    model.train_step = make_custom_callbacks(model, ShowPygame(storage_path + "/images"))
+    model.train_step = make_custom_callbacks(model, ShowPygame(storage_path + "/images", params))
     model.compile(optimizer=opt, loss=loss)
 
     if params.LOAD_WEIGHTS is not None:
