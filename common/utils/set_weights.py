@@ -48,7 +48,5 @@ def set_weights(base_model_path, new_model, force_resize=False, custom_objects =
             except (ValueError, IndexError) as e:
                 print(f"ValueError: {e}")
         else:
-            weights1 = layer.get_weights()
-            weights2 = base_model.layers[i].get_weights()
             print(f"Not found: {layer.name}")
     return new_model

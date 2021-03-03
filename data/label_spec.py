@@ -38,7 +38,7 @@ class Object:
                      # [8,9]: front_top_left, [10,11]: front_bottom_left, [12,13]: front_bottom_right, [14,15]: front_top_right
                      # points are stored in with [x, y] in pixel
   box3d_valid: bool = False
-  
+
   truncated: bool = False  # true if image leaves image boundaries
   occluded: int = 4 # 0 = fully visible (0-40%), 1 = partly occluded (40-60%), 2 = largely occluded (60-80%), 3 = almost all occluded (80-100%) 4 = unknown
 

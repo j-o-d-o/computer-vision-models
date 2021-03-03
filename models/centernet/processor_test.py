@@ -1,8 +1,10 @@
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.utils import Config, Logger, to_3channel
 from data.label_spec import OD_CLASS_MAPPING
+from numba.typed import List
 from models.centernet.processor import ProcessImages
 from models.centernet.params import CenternetParams
 
@@ -13,12 +15,12 @@ class TestProcessors:
         Logger.remove_file_logger()
 
         self.params = CenternetParams(len(OD_CLASS_MAPPING))
-        self.params.REGRESSION_FIELDS["l_shape"].active = False
-        self.params.REGRESSION_FIELDS["3d_info"].active = False
+        self.params.REGRESSION_FIELDS["l_shape"].active = True
+        self.params.REGRESSION_FIELDS["3d_info"].active = True
 
         # get some entries from the database
         Config.add_config('./config.ini')
-        self.collection_details = ("local_mongodb", "labels", "kitti")
+        self.collection_details = ("local_mongodb", "labels", "nuscenes_train")
 
         # Create Data Generators
         self.train_data, self.val_data = load_ids(
@@ -29,17 +31,22 @@ class TestProcessors:
 
     def test_process_image(self):
         train_gen = MongoDBGenerator(
-            self.collection_details,
-            self.train_data,
+            [self.collection_details],
+            [self.train_data],
             batch_size=30,
-            processors=[ProcessImages(self.params)]
+            processors=[ProcessImages(self.params, start_augmentation=[0, 99999], show_debug_img=False)]
         )
 
-        batch_x, batch_y = train_gen[0]
+        for batch_x, batch_y in train_gen:
+            print("New batch")
+            for i in range(len(batch_x[0])):
+                assert len(batch_x[0]) > 0
+                img1 = batch_x[0][i]
+                heatmap = to_3channel(batch_y[0][i], List(OD_CLASS_MAPPING.items()), 0.01, True, False)
+                weights = np.stack([batch_y[1][i]]*3, axis=-1)
 
-        for i, input_data in enumerate(batch_x):
-            assert len(input_data) > 0
-            mask_img = to_3channel(batch_y[i], OD_CLASS_MAPPING, 0.01, True)
-            cv2.imshow("img", input_data.astype(np.uint8))
-            cv2.imshow("mask", mask_img)
-            cv2.waitKey(0)
+                f, (ax1, ax2, ax3) = plt.subplots(1, 3)
+                ax1.imshow(cv2.cvtColor(batch_x[0][i].astype(np.uint8), cv2.COLOR_BGR2RGB))
+                ax2.imshow(cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB))
+                ax3.imshow(weights)
+                plt.show()

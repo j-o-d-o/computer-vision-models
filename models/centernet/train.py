@@ -1,17 +1,13 @@
 import tensorflow as tf
+tf.config.experimental.set_memory_growth(tf.config.experimental.list_physical_devices('GPU')[0], True)
+tf.config.optimizer.set_jit(True)
+
 from datetime import datetime
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
-from common.utils import Logger, Config
+from common.utils import Logger, Config, set_weights
 from common.callbacks import SaveToStorage
-from common.processors import AugmentImages
 from data.label_spec import OD_CLASS_MAPPING
 from models.centernet import ProcessImages, CenternetParams, CenternetLoss, create_model
-
-print("Using Tensorflow Version: " + tf.__version__)
-gpus = tf.config.experimental.list_physical_devices('GPU')
-assert len(gpus) > 0, "Not enough GPU hardware devices available"
-tf.config.experimental.set_memory_growth(gpus[0], True)
-tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=4864)])
 
 
 if __name__ == "__main__":
@@ -32,35 +28,34 @@ if __name__ == "__main__":
         shuffle_data=True
     )
 
-    processors = [ProcessImages(params)]
     train_gen = MongoDBGenerator(
-        collection_details,
-        train_data,
+        [collection_details],
+        [train_data],
         batch_size=params.BATCH_SIZE,
-        processors=processors
+        processors=[ProcessImages(params, 10)]
     )
     val_gen = MongoDBGenerator(
-        collection_details,
-        val_data,
+        [collection_details],
+        [val_data],
         batch_size=params.BATCH_SIZE,
-        processors=processors
+        processors=[ProcessImages(params)]
     )
 
-    loss = CenternetLoss(params)
-    metrics = [loss.class_focal_loss, loss.r_offset_loss, loss.fullbox_loss]
+    # Create Model
+    storage_path = storage_path = "./trained_models/centernet_nuimages_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     opt = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07) 
+    loss = CenternetLoss(params)
 
-    if params.LOAD_PATH is None:
-        model: tf.keras.models.Model = create_model(params)
-        model.compile(optimizer=opt, loss=loss, metrics=metrics)
-    else:
-        custom_objects = {"compute_loss": loss}
-        model: tf.keras.models.Model = tf.keras.models.load_model(params.LOAD_PATH, compile=False)
-    model.compile(optimizer=opt, loss=loss, metrics=metrics)
+    model: tf.keras.models.Model = create_model(params)
+    model.compile(optimizer=opt, loss=loss, metrics=[loss.class_focal_loss, loss.r_offset_loss, loss.fullbox_loss])
+
+    if params.LOAD_WEIGHTS is not None:
+        set_weights.set_weights(params.LOAD_WEIGHTS, model)
+
     model.summary()
+    model.run_eagerly = True
 
     # Train Model
-    storage_path = "./trained_models/centernet_nuimages_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
     callbacks = [SaveToStorage(storage_path, model, False), tensorboard_callback]
     params.save_to_storage(storage_path)

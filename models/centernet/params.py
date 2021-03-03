@@ -22,8 +22,8 @@ class CenternetParams:
         self.LOAD_PATH = None
 
         # Input
-        self.INPUT_WIDTH = 608 # width of input img in [px]
-        self.INPUT_HEIGHT = 240 # height of input img in [px]
+        self.INPUT_WIDTH = 640 # width of input img in [px]
+        self.INPUT_HEIGHT = 256 # height of input img in [px]
         self.OFFSET_BOTTOM = 0 # offset in [px], applied before scaling, thus relative to org. img size
         
         # Output Mask
@@ -40,9 +40,10 @@ class CenternetParams:
         # Loss - Regression
         self.REGRESSION_FIELDS = OrderedDict([
             ("r_offset", CenternetParams.RegressionField(True, 2, 0.2, "x, y")),
-            ("fullbox", CenternetParams.RegressionField(True, 2, 0.1, "width, height (in [px] relative to input)")),
-            ("l_shape", CenternetParams.RegressionField(True, 7, 0.1, "bottom_left_offset, bottom_right_offset, bottom_center_offset, center_height, (all points (x,y) in [px] relative to input)")),
-            ("3d_info", CenternetParams.RegressionField(True, 5, [0.1, 0.2, 0.1], "radial_dist [m], orientation [rad], width, height, length [m] (all in cam coordinate system)")),
+            ("fullbox", CenternetParams.RegressionField(False, 2, 0.1, "width, height (in [px] relative to input)")),
+            ("l_shape", CenternetParams.RegressionField(False, 7, 0.1, "bottom_left_offset, bottom_center_offset, bottom_right_offset, center_height, (all points (x,y) in [px] relative to input)")),
+            ("3d_info", CenternetParams.RegressionField(False, 5, [0.1, 0.2, 0.1], "radial_dist [m], orientation [rad], width, height, length [m] (all in cam coordinate system)")),
+            ("track_offset", CenternetParams.RegressionField(False, 2, 0.1, "x and y offset to track at t-1 relative to input size"))
         ])
 
     def start_idx(self, regression_key: str) -> int:

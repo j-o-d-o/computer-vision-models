@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 from dataclasses import dataclass
 from numba import jit
+from numba.typed import List
 from matplotlib import cm
 
 
@@ -69,20 +70,23 @@ def resize_img(img: np.ndarray, goal_width: int, goal_height: int, offset_bottom
 
 
 @jit(nopython=True)
-def to_3channel(raw_mask_output, cls_items, threshold = None, use_weight = False):
+def to_3channel(raw_mask_output, cls_items, threshold = None, use_weight = False, apply_softmax = True):
     nb_classes = len(cls_items)
     array = np.zeros((raw_mask_output.shape[0] * raw_mask_output.shape[1] * 3), dtype='uint8')
     flattened_arr = raw_mask_output.reshape((-1, raw_mask_output.shape[2]))
     for i, one_hot_encoded_arr in enumerate(flattened_arr):
         # find index of highest value in the one_hot_encoded_arr
-        softmax = one_hot_encoded_arr[:nb_classes] / np.sum(one_hot_encoded_arr[:nb_classes])
-        cls_idx = np.argmax(softmax)
-        cls_score = min(1.0, max(0.0, softmax[cls_idx]))
+        arr = one_hot_encoded_arr[:nb_classes]
+        if apply_softmax:
+            arr -= np.min(arr)
+            arr = arr / np.sum(arr)
+        cls_idx = np.argmax(arr)
+        cls_score = min(1.0, max(0.0, arr[cls_idx]))
         if threshold is None or cls_score > threshold:
             # convert index to hex value
             cls_score = cls_score if use_weight else 1.0
             cls_colour = cls_items[int(round(cls_idx))][1]
-            # cls_colour = tuple([cls_score * x for x in cls_colour])
+            cls_colour = [cls_score * x for x in cls_colour]
             # fill new array with BGR values
             new_i = i * 3
             array[new_i:new_i+3] = cls_colour

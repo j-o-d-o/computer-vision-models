@@ -8,7 +8,7 @@ from datetime import datetime
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.callbacks import SaveToStorage
 from common.utils import Logger, Config
-from models.multitask import create_model, MultitaskParams, ProcessImages, MultitaskLoss
+from models.multitask import create_model, MultitaskParams, ProcessImages, MultitaskLoss, 
 
 
 if __name__ == "__main__":
@@ -18,21 +18,12 @@ if __name__ == "__main__":
     params = MultitaskParams()
 
     Config.add_config('./config.ini')
-    con_depth = ("local_mongodb", "labels", "driving_stereo")
-    # con_depth = ("local_mongodb", "labels", "nuscenes_train")
-    con_semseg = ("local_mongodb", "labels", "comma10k")
+    con = ("local_mongodb", "labels", "nuscenes_train")
 
-    td_depth, vd_depth = load_ids(
-        con_depth,
+    td, vd = load_ids(
+        con,
         data_split=(80, 20),
-        shuffle_data=True,
-        limit=10000
-    )
-    td_semseg, vd_semseg = load_ids(
-        con_semseg,
-        data_split=(80, 20),
-        shuffle_data=True,
-        limit=10000
+        shuffle_data=False
     )
 
     train_data = [td_semseg, td_depth]
@@ -56,7 +47,7 @@ if __name__ == "__main__":
     )
 
     # Create Model
-    storage_path = "./trained_models/multitask_semseg_commat10k_depth_ds_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
+    storage_path = "./trained_models/multitask_depth_ds_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
     loss = MultitaskLoss()
 
