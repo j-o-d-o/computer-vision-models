@@ -34,10 +34,10 @@ class ShowPygame():
         self.display.blit(surface_img, (0, 0))
         semseg_true = cv2.cvtColor(to_3channel(y_true[0].numpy(), List(SEMSEG_CLASS_MAPPING.items())), cv2.COLOR_BGR2RGB).swapaxes(0, 1)
         surface_y_true = pygame.surfarray.make_surface(semseg_true)
-        self.display.blit(surface_y_true, (0, self.params.MASK_HEIGHT))
+        self.display.blit(surface_y_true, (0, self.params.INPUT_HEIGHT))
         semseg_pred = cv2.cvtColor(to_3channel(y_pred[0].numpy(), List(SEMSEG_CLASS_MAPPING.items())), cv2.COLOR_BGR2RGB).swapaxes(0, 1)
         surface_y_pred = pygame.surfarray.make_surface(semseg_pred)
-        self.display.blit(surface_y_pred, (0, self.params.MASK_HEIGHT*2))
+        self.display.blit(surface_y_pred, (0, int(self.params.INPUT_HEIGHT + self.params.MASK_HEIGHT)))
 
         self.step_counter += 1
         if self.step_counter % 2000 == 0:

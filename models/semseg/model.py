@@ -23,65 +23,61 @@ def create_model(input_height: int, input_width: int) -> tf.keras.Model:
     :return: Semseg Keras Model
     """
     inp = Input(shape=(input_height, input_width, 3))
-    # inp_rescaled = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(inp)
-    # fms = [] # [inp_rescaled]
-    # namescope = "semseg/"
-    # filters = 8
+    inp_rescaled = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(inp)
+    fms = [] # [inp_rescaled]
+    namescope = "semseg/"
+    filters = np.array([8, 16, 32, 48, 64, 92, 128])
 
-    # # Downsample
-    # # ----------------------------
-    # x = Conv2D(filters, 5, padding="same", name=f"{namescope}initial_downsample", strides=(2, 2), kernel_regularizer=l2(l=0.0001))(inp_rescaled)
-    # x = BatchNormalization(name=f"{namescope}initial_batchnorm")(x)
-    # x = ReLU(6., name=f"{namescope}initial_acitvation")(x)
-    # fms.append(x)
+    # Downsample
+    # ----------------------------
+    x = Conv2D(filters[0], 5, padding="same", name=f"{namescope}initial_downsample", strides=(2, 2))(inp_rescaled)
+    x = BatchNormalization(name=f"{namescope}initial_batchnorm")(x)
+    x = ReLU(6., name=f"{namescope}initial_acitvation")(x)
+    fms.append(x)
 
-    # x = bottle_neck_block(f"{namescope}downsample_0/", x, filters)
-    # x = bottle_neck_block(f"{namescope}downsample_1/", x, filters, downsample = True)
-    # fms.append(x)
-    # filters = int(filters * 2)
+    x = bottle_neck_block(f"{namescope}downsample_2/", x, filters[1])
+    x = bottle_neck_block(f"{namescope}downsample_3/", x, filters[1], downsample = True)
+    fms.append(x)
 
-    # x = bottle_neck_block(f"{namescope}downsample_2/", x, filters)
-    # x = bottle_neck_block(f"{namescope}downsample_3/", x, filters, downsample = True)
-    # fms.append(x)
-    # filters = int(filters * 2)
+    x = bottle_neck_block(f"{namescope}downsample_4/", x, filters[2])
+    x = bottle_neck_block(f"{namescope}downsample_5/", x, filters[2], downsample = True)
+    fms.append(x)
 
-    # x = bottle_neck_block(f"{namescope}downsample_4/", x, filters)
-    # x = bottle_neck_block(f"{namescope}downsample_5/", x, filters, downsample = True)
-    # filters = int(filters * 2)
+    x = bottle_neck_block(f"{namescope}downsample_6/", x, filters[3])
+    x = bottle_neck_block(f"{namescope}downsample_7/", x, filters[3], downsample = True)
+    fms.append(x)
 
-    # # Dilation (to avoid further downsampling)
-    # # ----------------------------
-    # dilation_rates = [3, 6, 9, 12]
-    # concat_tensors = []
-    # x = Conv2D(filters, kernel_size=1, name=f"{namescope}start_dilation_1x1", kernel_regularizer=l2(l=0.0001))(x)
-    # concat_tensors.append(x)
-    # for i, rate in enumerate(dilation_rates):
-    #     x = bottle_neck_block(f"{namescope}dilation_{i}", x, filters)
-    #     x = BatchNormalization(name=f"{namescope}dilation_batchnorm_{i}")(x)
-    #     concat_tensors.append(x)
+    x = bottle_neck_block(f"{namescope}downsample_8/", x, filters[4])
+    x = bottle_neck_block(f"{namescope}downsample_9/", x, filters[4], downsample = True)
+    fms.append(x)
 
-    # x = Concatenate(name=f"{namescope}dilation_concat")(concat_tensors)
-    # fms.append(x)
+    x = bottle_neck_block(f"{namescope}downsample_10/", x, filters[5])
+    x = bottle_neck_block(f"{namescope}downsample_11/", x, filters[5], downsample = True)
+    fms.append(x)
 
-    # # Upsample
-    # # ----------------------------
-    # for i in range(len(fms) - 2, -1, -1):
-    #     filters = int(filters // 2)
-    #     fms[i] = Conv2D(filters, (3, 3), padding="same", name=f"{namescope}conv2d_up_{i}", kernel_regularizer=l2(l=0.0001))(fms[i])
-    #     fms[i] = BatchNormalization(name=f"{namescope}batchnorm_up_{i}")(fms[i])
-    #     fms[i] = ReLU(6.0)(fms[i])
-    #     x = upsample_block(f"{namescope}upsample_{i}/", x, fms[i], filters)
+    x = bottle_neck_block(f"{namescope}downsample_12/", x, filters[6])
+    x = bottle_neck_block(f"{namescope}downsample_13/", x, filters[6], downsample = True)
+    fms.append(x)
 
-    # # Create Semseg Map
-    # # ----------------------------
-    # x = Conv2D(8, (3, 3), padding="same", name=f"{namescope}semseghead_conv2d", kernel_regularizer=l2(l=0.0001))(x)
-    # x = BatchNormalization(name=f"{namescope}semseghead_batchnorm")(x)
-    # x = ReLU(6.0)(x)
-    # semseg_map = Conv2D(len(SEMSEG_CLASS_MAPPING), kernel_size=1, name=f"{namescope}out", activation="sigmoid", kernel_regularizer=l2(l=0.0001))(x)
 
-    # define model
-    unet_model = sm.Unet('resnet34', classes=5, activation='sigmoid', encoder_weights='imagenet')
-    semseg_map = unet_model(inp) 
+    # Upsample
+    # ----------------------------
+    for i in range(len(fms) - 2, -1, -1):
+        fms[i] = Conv2D(filters[i], (3, 3), padding="same", name=f"{namescope}conv2d_up_{i}", kernel_regularizer=l2(l=0.0001))(fms[i])
+        fms[i] = BatchNormalization(name=f"{namescope}batchnorm_up_{i}")(fms[i])
+        fms[i] = ReLU(6.0)(fms[i])
+        x = upsample_block(f"{namescope}upsample_{i}/", x, fms[i], filters[i])
+
+    # Create Semseg Map
+    # ----------------------------
+    x = Conv2D(8, (3, 3), padding="same", name=f"{namescope}semseghead_conv2d", kernel_regularizer=l2(l=0.0001))(x)
+    x = BatchNormalization(name=f"{namescope}semseghead_batchnorm")(x)
+    x = ReLU(6.0)(x)
+    semseg_map = Conv2D(len(SEMSEG_CLASS_MAPPING), kernel_size=1, name=f"{namescope}out", activation="sigmoid", kernel_regularizer=l2(l=0.0001))(x)
+
+    # # define model
+    # unet_model = sm.Unet('resnet34', classes=5, activation='sigmoid', encoder_weights='imagenet')
+    # semseg_map = unet_model(inp) 
 
     return Model(inputs=[inp], outputs=semseg_map)
 
@@ -96,5 +92,5 @@ if __name__ == "__main__":
     model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
     # set_weights.set_weights("/home/computer-vision-models/keras.h5", model, force_resize=False)
     model.summary()
-    plot_model(model.layers[1], to_file="./tmp/semseg_model.png")
+    plot_model(model, to_file="./tmp/semseg_model.png")
     tflite_convert.tflite_convert(model, "./tmp", True, True, convert.create_dataset(model.input.shape))

@@ -10,19 +10,29 @@ def bottle_neck_block(name_prefix: str, inputs: tf.Tensor, filters: int, expansi
     """
     stride = 1 if not downsample else 2
     skip = inputs
-    # Expansion
-    x = Conv2D(filters * expansion_factor, kernel_size=1, use_bias=False,
-        padding='same', name=f"{name_prefix}conv2d/0", kernel_regularizer=l2(l=0.0001))(inputs)
+
+    # # Expansion
+    # x = Conv2D(filters * expansion_factor, kernel_size=1, use_bias=False,
+    #     padding='same', name=f"{name_prefix}conv2d/0", kernel_regularizer=l2(l=0.0001))(inputs)
+    # x = BatchNormalization(name=f"{name_prefix}batchnorm/0")(x)
+    # x = ReLU(6.0)(x)
+    # # Convolution
+    # x = DepthwiseConv2D(kernel_size=3, strides=stride, dilation_rate=dilation_rate,
+    #     use_bias=False, padding='same', name=f"{name_prefix}conv2d/1", kernel_regularizer=l2(l=0.0001))(x)
+    # x = BatchNormalization(name=f"{name_prefix}batchnorm/1")(x)
+    # x = ReLU(6.0)(x)
+    # # Project
+    # x = Conv2D(filters, kernel_size=1, use_bias=False, padding='same', name=f"{name_prefix}conv2d/2", kernel_regularizer=l2(l=0.0001))(x)
+    # x = BatchNormalization(name=f"{name_prefix}batchnorm/2")(x)
+
+    x = Conv2D(filters, use_bias=False, kernel_size=3, name=f"{name_prefix}conv2d/0", padding="same", dilation_rate=dilation_rate, kernel_regularizer=l2(l=0.0001))(inputs)
     x = BatchNormalization(name=f"{name_prefix}batchnorm/0")(x)
     x = ReLU(6.0)(x)
-    # Convolution
-    x = DepthwiseConv2D(kernel_size=3, strides=stride, dilation_rate=dilation_rate,
-        use_bias=False, padding='same', name=f"{name_prefix}conv2d/1", kernel_regularizer=l2(l=0.0001))(x)
+    
+    x = Conv2D(filters, use_bias=False, kernel_size=3, name=f"{name_prefix}conv2d/1", padding="same", strides=stride, dilation_rate=dilation_rate, kernel_regularizer=l2(l=0.0001))(x)
     x = BatchNormalization(name=f"{name_prefix}batchnorm/1")(x)
     x = ReLU(6.0)(x)
-    # Project
-    x = Conv2D(filters, kernel_size=1, use_bias=False, padding='same', name=f"{name_prefix}conv2d/2", kernel_regularizer=l2(l=0.0001))(x)
-    x = BatchNormalization(name=f"{name_prefix}batchnorm/2")(x)
+
     # Residual connection
     input_filters = int(inputs.shape[-1])
     if downsample:
@@ -30,6 +40,8 @@ def bottle_neck_block(name_prefix: str, inputs: tf.Tensor, filters: int, expansi
     elif input_filters != filters:
         skip = Conv2D(filters, (1, 1), padding="same", name=f"{name_prefix}skip", kernel_regularizer=l2(l=0.0001))(skip)
     x = Add(name=f"{name_prefix}add")([skip, x])
+    x = BatchNormalization(name=f"{name_prefix}batchnorm/3")(x)
+    x = ReLU(6.0, name=f"{name_prefix}out")(x)
     return x
 
 

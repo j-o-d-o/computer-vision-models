@@ -16,7 +16,6 @@ from numba.typed import List
 from pymongo import MongoClient
 from common.utils import to_3channel, resize_img
 from data.label_spec import SEMSEG_CLASS_MAPPING
-from models.semseg import SemsegModel
 
 
 if __name__ == "__main__":
@@ -33,7 +32,7 @@ if __name__ == "__main__":
 
     # For debugging force a value here
     args.use_edge_tpu = True
-    args.model_path = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-03-01-192420/tf_model_20/model_quant_edgetpu.tflite"
+    args.model_path = "/home/computer-vision-models/tmp/model_quant_edgetpu.tflite"
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]
@@ -91,7 +90,7 @@ if __name__ == "__main__":
             elapsed_time = time.time() - start_time
             # The function `get_tensor()` returns a copy of the tensor data. Use `tensor()` in order to get a pointer to the tensor.
             output_data = interpreter.get_tensor(output_details[0]['index'])
-            semseg_img = to_3channel(output_data[0], List(SEMSEG_CLASS_MAPPING.items()))
+            semseg_img = to_3channel(output_data[0].astype(np.float64), List(SEMSEG_CLASS_MAPPING.items()))
         else:
             img_arr = np.array([img])
             start_time = time.time()
