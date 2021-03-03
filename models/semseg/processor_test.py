@@ -44,8 +44,9 @@ class TestProcessors:
             assert len(input_data) > 0
             cls_items = List(SEMSEG_CLASS_MAPPING.items())
             nb_classes = len(cls_items)
-            mask_img = to_3channel(batch_y[0][i], cls_items, threshold=0.999)
-            pos_mask = batch_y[1][i]
+            semseg_mask = np.array(batch_y[i][:, :, :-1]) # needed because otherwise numba makes mimimi
+            mask_img = to_3channel(semseg_mask, cls_items, threshold=0.999)
+            pos_mask = batch_y[i][:, :, -1]
 
             f, (ax1, ax2, ax3) = plt.subplots(1, 3)
             ax1.imshow(cv2.cvtColor(input_data.astype(np.uint8), cv2.COLOR_BGR2RGB))

@@ -109,10 +109,10 @@ class ProcessImages(IPreProcessor):
         pos_mask = np.ones((self.params.MASK_HEIGHT, self.params.MASK_WIDTH), dtype=np.float32)
         mask_img, pos_mask = hex_to_one_hot(mask_img, pos_mask, colours)
         nb_classes = len(SEMSEG_CLASS_MAPPING)
-        ground_truth = to_categorical(mask_img, nb_classes)
+        y_true_mask = to_categorical(mask_img, nb_classes)
 
         input_data = input_data.astype(np.float32)
-        ground_truth = [ground_truth, pos_mask]
+        ground_truth = np.concatenate((y_true_mask, np.expand_dims(pos_mask, axis=-1)), axis=-1)
         # elapsed_time = time.time() - start_time
         # print(str(elapsed_time) + " s")
         return raw_data, input_data, ground_truth, piped_params

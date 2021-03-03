@@ -14,60 +14,6 @@ from common.utils import to_3channel
 from tensorflow.python.keras.engine import compile_utils
 
 
-class SemsegModel(Model):
-    def init_save_dir(self, save_dir):
-        self.save_dir = save_dir
-        self.file_writer = tf.summary.create_file_writer(save_dir)
-        self.train_step_counter = 0
-
-    def compile(self, optimizer, custom_loss):
-        super().compile(optimizer)
-        self.custom_loss = custom_loss
-
-    @property
-    def metrics(self):
-        return_val = list(self.custom_loss.metrics.values())
-        return return_val
-
-    def train_step(self, data):
-        self.train_step_counter += 1
-        data = data_adapter.expand_1d(data)
-        input_data, gt, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
-        semseg_mask = gt[0]
-        pos_mask = gt[1]
-
-        with backprop.GradientTape() as tape:
-            semseg_pred = self(input_data, training=True)
-            loss_val = self.custom_loss.calc(input_data, semseg_mask, pos_mask, semseg_pred)
-        self.optimizer.minimize(loss_val, self.trainable_variables, tape=tape)
-
-        # Using the file writer, log images
-        if self.train_step_counter % 200 == 0:
-            tf.summary.experimental.set_step(self.train_step_counter)
-            with self.file_writer.as_default():
-                inp_img = cv2.cvtColor(input_data[0].numpy().astype(np.uint8), cv2.COLOR_BGR2RGB)
-                semseg_true_img = cv2.cvtColor(to_3channel(semseg_mask[0].numpy(), List(SEMSEG_CLASS_MAPPING.items())), cv2.COLOR_BGR2RGB)
-                semseg_pred_img = cv2.cvtColor(to_3channel(semseg_pred[0].numpy(), List(SEMSEG_CLASS_MAPPING.items())), cv2.COLOR_BGR2RGB)
-
-                tf.summary.image("inp", np.expand_dims(inp_img, axis=0), max_outputs=80)
-                tf.summary.image("true", np.expand_dims(semseg_true_img, axis=0), max_outputs=80)
-                tf.summary.image("pred", np.expand_dims(semseg_pred_img, axis=0), max_outputs=80)
-
-        return {m.name: m.result() for m in self.metrics}
-
-    def test_step(self, data):
-        # self.train_step_counter = 0
-        data = data_adapter.expand_1d(data)
-        input_data, gt, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
-        semseg_mask = gt[0]
-        pos_mask = gt[1]
-
-        semseg_pred = self(input_data, training=False)
-        loss_val = self.custom_loss.calc(input_data, semseg_mask, pos_mask, semseg_pred)
-
-        return {m.name: m.result() for m in self.metrics}
-
-
 def create_model(input_height: int, input_width: int) -> tf.keras.Model:
     """
     Create a semseg model
@@ -132,7 +78,7 @@ def create_model(input_height: int, input_width: int) -> tf.keras.Model:
     x = ReLU(6.0)(x)
     semseg_map = Conv2D(len(SEMSEG_CLASS_MAPPING), kernel_size=1, name=f"{namescope}out", activation="sigmoid", kernel_regularizer=l2(l=0.0001))(x)
 
-    return SemsegModel(inputs=[inp], outputs=semseg_map)
+    return Model(inputs=[inp], outputs=semseg_map)
 
 
 # To test model creation and quickly check if edgetpu compiler compiles it correctly
@@ -143,7 +89,7 @@ if __name__ == "__main__":
     
     params = SemsegParams()
     model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
-    set_weights.set_weights("/home/computer-vision-models/keras.h5", model, force_resize=False, custom_objects={"SemsegModel": SemsegModel})
+    set_weights.set_weights("/home/computer-vision-models/keras.h5", model, force_resize=False)
     model.summary()
     plot_model(model, to_file="./tmp/semseg_model.png")
     tflite_convert.tflite_convert(model, "./tmp", True, True, convert.create_dataset(model.input.shape))
