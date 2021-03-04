@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     # For debugging force a value here
     args.use_edge_tpu = True
-    args.model_path = "/home/computer-vision-models/tmp/model_quant_edgetpu.tflite"
+    args.model_path = "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-03-04-07266/tf_model_8/keras.h5"
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]
@@ -56,7 +56,7 @@ if __name__ == "__main__":
         output_details = interpreter.get_output_details()
     else:
         with tfmot.quantization.keras.quantize_scope():
-            model: tf.keras.models.Model = tf.keras.models.load_model(args.model_path, custom_objects={"SemsegModel": SemsegModel}, compile=False)
+            model: tf.keras.models.Model = tf.keras.models.load_model(args.model_path, compile=False)
         model.summary()
         print("Using Tensorflow")
 
@@ -97,10 +97,11 @@ if __name__ == "__main__":
             raw_result = model.predict(img_arr)
             elapsed_time = time.time() - start_time 
             semseg_img = raw_result[0]
-            semseg_img = to_3channel(semseg_img, List(SEMSEG_CLASS_MAPPING.items()), threshold=0.98)
+            semseg_img = to_3channel(semseg_img, List(SEMSEG_CLASS_MAPPING.items()), threshold=0.5)
 
-            # # in case we are sure, there is no care parts (e.g. nuscenes) mask these detections out
+            # in case we are sure, there is no care parts (e.g. nuscenes) mask these detections out
             # semseg_img[np.where((semseg_img==[255, 0, 204]).all(axis=2))] = [0, 0, 0]
+
             # # somehow the model likes to put non drivable holes in front of us, mask these out
             # semseg_cut = semseg_img[182:, 240:400, :]
             # semseg_cut[np.where((semseg_cut==[96, 128, 128]).all(axis=2))] = [0, 0, 0]
