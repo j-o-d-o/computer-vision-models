@@ -193,11 +193,16 @@ class DmdsLoss:
         self.loss_vals["tran"] = translation_error * self.params.tran_cyc
 
     def calc(self, img0, img1, depth0, depth1, obj_tran, obj_tran_inv, bg_tran, bg_tran_inv, rot, rot_inv, K, gt_x0, gt_x1, step_number):
-        obj_tran *= tf.clip_by_value(((step_number - 5000.0) / 10000.0), 0.0, 1.0)
+        # obj_tran *= tf.clip_by_value(((step_number - 5000.0) / 10000.0), 0.0, 1.0)
+        obj_tran *= 0.0
 
         np_rot = rot.numpy()
         np_obj_tran = obj_tran.numpy()
         np_bg_tran = bg_tran.numpy()
+        bg_tran *= 0.0
+        rot *= 0.0
+        bg_tran_inv *= 0.0
+        rot_inv *= 0.0
 
         # some attempt to make sure rotation and translation are not getting too big
         # bg_abs = tf.abs(bg_tran)
@@ -237,15 +242,15 @@ class DmdsLoss:
 
         # Depth regulizers
         # -------------------------------
-        mean_depth = tf.reduce_mean(depth1)
-        depth_var = tf.reduce_mean(tf.square(depth1 / mean_depth - 1.0))
-        self.loss_vals["depth_var"] = tf.math.reciprocal_no_nan(depth_var) * self.params.var_depth
+        # mean_depth = tf.reduce_mean(depth1)
+        # depth_var = tf.reduce_mean(tf.square(depth1 / mean_depth - 1.0))
+        # self.loss_vals["depth_var"] = tf.math.reciprocal_no_nan(depth_var) * self.params.var_depth
 
-        disp = tf.math.reciprocal_no_nan(depth1)
-        mean_disp = tf.reduce_mean(disp, axis=[1, 2, 3], keepdims=True)
-        self.loss_vals["depth_smooth"] = regularizers.joint_bilateral_smoothing(disp * tf.math.reciprocal_no_nan(mean_disp), img1) * self.params.depth_smoothing
+        # disp = tf.math.reciprocal_no_nan(depth1)
+        # mean_disp = tf.reduce_mean(disp, axis=[1, 2, 3], keepdims=True)
+        # self.loss_vals["depth_smooth"] = regularizers.joint_bilateral_smoothing(disp * tf.math.reciprocal_no_nan(mean_disp), img1) * self.params.depth_smoothing
 
-        # self.loss_vals["depth_abs"] = DepthLoss._calc_loss(tf.concat([gt_x0, gt_x1], axis=0), depth0)
+        self.loss_vals["depth_abs"] = DepthLoss.calc(tf.concat([gt_x0, gt_x1], axis=0), depth0) * 10.0
 
         # Motionmap regulizers
         # -------------------------------

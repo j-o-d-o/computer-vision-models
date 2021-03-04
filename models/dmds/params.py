@@ -15,7 +15,7 @@ class DmdsParams:
         self.rgb_cons = (1.5 / 255.0)
         self.ssim_cons = 2.5
         self.depth_cons = 0.0
-        self.supervise_depth = 1.0
+        self.supervise_depth = 10.0
         self.depth_smoothing = 0.002
         self.var_depth = 1e-6
         self.rot_cyc = 5.0e-3

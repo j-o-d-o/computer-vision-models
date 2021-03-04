@@ -222,7 +222,7 @@ def create_motion_model(input_height: int, input_width: int) -> tf.keras.Model:
     motion_model = Model(inputs=[input_t0, input_t1, depth_t0, depth_t1], outputs=[resudial_translation, background_translation, background_rotation] , name="motion_model")
     return motion_model
 
-def create_model(input_height: int, input_width: int, depth_model_path: str = None) -> tf.keras.Model:
+def create_model(input_height: int, input_width: int) -> tf.keras.Model:
     intr = Input(shape=(3, 3))
     
     input_t0 = Input(shape=(input_height, input_width, 3))
@@ -231,7 +231,7 @@ def create_model(input_height: int, input_width: int, depth_model_path: str = No
 
     # Depth Model
     # ------------------------------
-    DepthModel = create_depth_model(input_height, input_width, depth_model_path)
+    DepthModel = create_depth_model(input_height, input_width)
     depth_t1 = DepthModel([input_t1])
 
     # Motion Model

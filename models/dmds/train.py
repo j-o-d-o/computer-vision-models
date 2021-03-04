@@ -97,18 +97,20 @@ if __name__ == "__main__":
     )
 
     # Create Model
-    opt = optimizers.Adam(lr=0.0002)
+    opt = optimizers.Adam(lr=0.0006)
 
-    if params.LOAD_PATH is not None:
-        model: models.Model = models.load_model(params.LOAD_PATH, custom_objects=custom_objects, compile=False)
-    else:
-        model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH, params.LOAD_DEPTH_MODEL)
+    model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
 
     # custom_loss parameter only works because we override the compile() and train_step() of the tf.keras.Model
     model.compile(optimizer=opt, custom_loss=DmdsLoss(params))
+    model.run_eagerly = True
     model.summary()
 
-    model.run_eagerly = True
+    if params.LOAD_PATH is not None:
+        set_weights.set_weights(params.LOAD_PATH, model)
+
+    if params.LOAD_DEPTH_MODEL is not None:
+        set_weights.set_weights(params.LOAD_DEPTH_MODEL, model.get_layer("depth_model"))
 
     # Train model
     storage_path = "./trained_models/dmds_ds_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
