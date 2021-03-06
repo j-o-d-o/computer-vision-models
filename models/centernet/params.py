@@ -19,7 +19,7 @@ class CenternetParams:
         # Training
         self.BATCH_SIZE = 8
         self.PLANED_EPOCHS = 90
-        self.LOAD_PATH = None
+        self.LOAD_WEIGHTS = None
 
         # Input
         self.INPUT_WIDTH = 640 # width of input img in [px]
@@ -79,7 +79,7 @@ class CenternetParams:
             "input": [self.INPUT_HEIGHT, self.INPUT_WIDTH, 3],
             "mask": [self.MASK_HEIGHT, self.MASK_WIDTH, self.mask_channels()],
             "batch_size": self.BATCH_SIZE,
-            "load_path": self.LOAD_PATH,
+            "load_weights": self.LOAD_WEIGHTS,
             "output_fields": []
         }
         dict_data["output_fields"].append({"object_class": {"start_idx": 0, "end_idx": self.NB_CLASSES - 1, "comment": "Object classes"}})

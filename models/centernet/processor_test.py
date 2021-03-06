@@ -34,7 +34,7 @@ class TestProcessors:
             [self.collection_details],
             [self.train_data],
             batch_size=30,
-            processors=[ProcessImages(self.params, start_augmentation=[0, 0], show_debug_img=True)]
+            processors=[ProcessImages(self.params, start_augmentation=[0, 0], show_debug_img=False)]
         )
 
         for batch_x, batch_y in train_gen:

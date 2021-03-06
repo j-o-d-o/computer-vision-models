@@ -28,7 +28,8 @@ class TestLoss():
         self.mask_height = 7
         self.mask_width = 7
         self.channels = self.params.mask_channels()
-        self.ground_truth = np.zeros((self.mask_height, self.mask_width, self.channels))
+        self.ground_truth = np.zeros((self.mask_height, self.mask_width, self.channels + 1))
+        self.ground_truth[:, :, -1] = 1.0 # set weights
         # class with a bit of distribution to the right keypoint
         self.ground_truth[self.cp_y    ][self.cp_x][self.cls_idx] = 1.0
         self.ground_truth[self.cp_y + 1][self.cp_x][self.cls_idx] = 0.8
@@ -36,7 +37,7 @@ class TestLoss():
         self.ground_truth[self.cp_y][self.cp_x][nb_classes:] = [
             *self.obj_data["r_offset"], self.obj_data["width_px"], self.obj_data["height_px"],
             *self.obj_data["bottom_left_off"], *self.obj_data["bottom_right_off"], *self.obj_data["bottom_center_off"], self.obj_data["center_height"],
-            self.obj_data["radial_dist"], self.obj_data["orientation"], self.obj_data["obj_width"], self.obj_data["obj_height"], self.obj_data["obj_length"]
+            self.obj_data["radial_dist"], self.obj_data["orientation"], self.obj_data["obj_width"], self.obj_data["obj_height"], self.obj_data["obj_length"], 1.0
         ]
 
         # Create perfect prediction
@@ -61,7 +62,7 @@ class TestLoss():
         prediction[self.cp_y + 1][self.cp_x][self.cls_idx] = 1.0
         one_off_class_loss = self.loss(np.asarray([self.ground_truth]), np.asarray([prediction])).numpy()
         prediction[self.cp_y + 1][self.cp_x][self.cls_idx] = 0.0 # reset previous peak
-        prediction[self.cp_y + 3][self.cp_x][self.cls_idx] = 1.0
+        prediction[self.cp_y + 5][self.cp_x][self.cls_idx] = 1.0
         wrong_peak_class_loss = self.loss(np.asarray([self.ground_truth]), np.asarray([prediction])).numpy()
         assert one_off_class_loss < wrong_peak_class_loss
 

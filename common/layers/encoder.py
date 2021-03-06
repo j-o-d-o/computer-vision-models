@@ -5,7 +5,7 @@ from tensorflow.keras.regularizers import l2
 from common.layers import bottle_neck_block, upsample_block
 
 
-def encoder(filter_size: int, input_tensor: tf.Tensor, filter_scaling=2.0, output_scaled_down: bool = False, namescope: str = "encoder/"):
+def encoder(filter_size: int, input_tensor: tf.Tensor, output_scaled_down: bool = False, namescope: str = "encoder/"):
     x = input_tensor
     fms = []
     if not output_scaled_down:

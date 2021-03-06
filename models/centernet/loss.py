@@ -26,7 +26,7 @@ class CenternetLoss(Loss):
             self.orientation_pos = start_idx + 1
             self.obj_dims_pos = [start_idx + 2, start_idx + 5]
 
-    def class_focal_loss(self, y_true, y_pred):
+    def class_focal_loss(self, y_true, y_pred, weights):
         y_true_class = y_true[:, :, :, :self.class_pos[1]]
         y_pred_class = y_pred[:, :, :, :self.class_pos[1]]
 
@@ -46,8 +46,9 @@ class CenternetLoss(Loss):
         )
 
         n = tf.reduce_sum(pos_mask)
-        pos_loss_val = tf.reduce_sum(pos_loss) * 1.2 # since we have semseg additionally we rather have more than less objects
-        neg_loss_val = tf.reduce_sum(neg_loss)
+        stacked_weights = tf.stack([weights]*pos_loss.shape[-1], axis=-1)
+        pos_loss_val = tf.reduce_sum(pos_loss * stacked_weights)
+        neg_loss_val = tf.reduce_sum(neg_loss * stacked_weights)
 
         loss_val = tf.cond(tf.greater(n, 0), lambda: (pos_loss_val + neg_loss_val) / n, lambda: neg_loss_val)
         return loss_val
@@ -116,7 +117,10 @@ class CenternetLoss(Loss):
         y_true = tf.cast(y_true, tf.float32)
         y_pred = tf.cast(y_pred, tf.float32)
 
-        total_loss = self.class_focal_loss(y_true, y_pred)
+        weights = y_true[:, :, :, -1]
+        y_true = y_true[:, :, :, :-1]
+
+        total_loss = self.class_focal_loss(y_true, y_pred, weights)
 
         if self.params.REGRESSION_FIELDS["r_offset"].active:
             total_loss += self.r_offset_loss(y_true, y_pred) * self.params.REGRESSION_FIELDS["r_offset"].loss_weight

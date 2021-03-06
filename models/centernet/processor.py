@@ -1,6 +1,9 @@
 import numpy as np
 import cv2
 import math
+import time
+from numba import jit
+from numba.typed import List
 import matplotlib.pyplot as plt
 from dataclasses import dataclass
 from tensorflow.keras.utils import to_categorical
@@ -10,6 +13,29 @@ from data.label_spec import OD_CLASS_MAPPING, OD_CLASS_IDX
 from models.centernet.params import CenternetParams
 import albumentations as A
 
+
+@jit(nopython=True)
+def fill_heatmap(
+        ground_truth: np.ndarray, alpha: float, R: float, weights: np.ndarray,
+        cls_idx: int, center_x:int, center_y:int, width:float, height:float,
+        mask_width:int, mask_height:int, peak:float = 1.0
+    ):
+    max_dim = max(width, height)
+    reduce_weight = 1.0 - ((min(20.0, max_dim) / 16.0) - 0.25)
+    # create the heatmap with a gausian distribution for lower loss in the area of each object
+    min_x = max(0, center_x - int(width // 2))
+    max_x = min(mask_width, center_x + int(width // 2))
+    min_y = max(0, center_y - int(height // 2))
+    max_y = min(mask_height, center_y + int(height // 2))
+    for x in range(min_x, max_x):
+        for y in range(min_y, max_y):
+            var_width = math.pow(((alpha * width) / (6 * R)), 2)
+            var_height = math.pow(((alpha * height) / (6 * R)), 2)
+            weight_width = math.pow((x - center_x), 2) / (2 * var_width)
+            weight_height = math.pow((y - center_y), 2) / (2 * var_height)
+            var_weight = math.exp(-(weight_width + weight_height))
+            ground_truth[y][x][cls_idx] = max(var_weight * peak, ground_truth[y][x][cls_idx])
+            weights[y][x] = min(weights[y][x], 1.0 - (reduce_weight * var_weight))
 
 class ProcessImages(IPreProcessor):
     def __init__(self, params: CenternetParams, start_augmentation: int = None, show_debug_img: bool = False):
@@ -28,24 +54,6 @@ class ProcessImages(IPreProcessor):
         my = np.clip(my, min_y, max_y)
         bbox = [x, y, mx - x, my -y]
         return bbox
-
-    def fill_heatmap(self, ground_truth, weights, cls_idx, center_x, center_y, width, height, mask_width, mask_height, peak = 1.0):
-        max_dim = max(width, height)
-        reduce_weight = 1.0 - ((min(20.0, max_dim) / 16.0) - 0.25)
-        # create the heatmap with a gausian distribution for lower loss in the area of each object
-        min_x = max(0, center_x - int(width // 2))
-        max_x = min(mask_width, center_x + int(width // 2))
-        min_y = max(0, center_y - int(height // 2))
-        max_y = min(mask_height, center_y + int(height // 2))
-        for x in range(min_x, max_x):
-            for y in range(min_y, max_y):
-                var_width = math.pow(((self.params.VARIANCE_ALPHA * width) / (6 * self.params.R)), 2)
-                var_height = math.pow(((self.params.VARIANCE_ALPHA * height) / (6 * self.params.R)), 2)
-                weight_width = math.pow((x - center_x), 2) / (2 * var_width)
-                weight_height = math.pow((y - center_y), 2) / (2 * var_height)
-                var_weight = math.exp(-(weight_width + weight_height))
-                ground_truth[y][x][cls_idx] = max(var_weight * peak, ground_truth[y][x][cls_idx])
-                weights[y][x] = min(weights[y][x], 1.0 - (reduce_weight * var_weight))
 
     def calc_img_data(self, box2d, box3d, mask_width, mask_height):
         # get center points and their offset
@@ -205,6 +213,8 @@ class ProcessImages(IPreProcessor):
         return img1, bbox1, keypoints1, filtered_objs1, img0, bbox0, keypoints0, filtered_objs0
 
     def process(self, raw_data, input_data, ground_truth, piped_params=None):
+        # start_time = time.time()
+
         # img1 = image at t+1
         # img0 = image at t
         # images are expected to be in INPUT_HEIGHT and INPUT_WIDTH already
@@ -287,7 +297,7 @@ class ProcessImages(IPreProcessor):
                     gt_center[self.params.start_idx("3d_info"):self.params.end_idx("3d_info")] = [radial_dist, obj["orientation"], obj["width"], obj["height"], obj["length"]]
 
                 # create the heatmap with a gausian distribution for lower loss in the area of each object
-                self.fill_heatmap(heatmap1, weights, OD_CLASS_IDX[obj["obj_class"]], center[0], center[1], width, height, mask_width, mask_height)
+                fill_heatmap(heatmap1, self.params.VARIANCE_ALPHA, self.params.R, weights, OD_CLASS_IDX[obj["obj_class"]], center[0], center[1], width, height, mask_width, mask_height)
 
                 if self.show_debug_img:
                     # center
@@ -320,5 +330,8 @@ class ProcessImages(IPreProcessor):
         weights = np.where(weights == 10.0, 1.0, weights)
         input_data = [img1.astype(np.float32)]
         ground_truth = np.concatenate((heatmap1, np.expand_dims(weights, axis=-1)), axis=-1)
+
+        # elapsed_time = time.time() - start_time
+        # print(str(elapsed_time) + " s")
 
         return raw_data, input_data, ground_truth, piped_params
