@@ -45,7 +45,7 @@ if __name__ == "__main__":
         [collection_details],
         [train_data],
         batch_size=params.BATCH_SIZE,
-        processors=[ProcessImages(params, [30, 60])],
+        processors=[ProcessImages(params, [10, 20])],
         shuffle_data=True
     )
     val_gen = MongoDBGenerator(
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     model.compile(optimizer=opt, loss=loss)
 
     if params.LOAD_WEIGHTS is not None:
-        set_weights.set_weights(params.LOAD_WEIGHTS, model, force_resize=False)
+        set_weights.set_weights(params.LOAD_WEIGHTS, model, custom_objects={"SemsegModel": tf.keras.Model}, force_resize=False)
 
     model.summary()
     # for debugging custom loss or layers, set to True
