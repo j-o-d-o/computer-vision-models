@@ -34,7 +34,7 @@ class TestProcessors:
             [self.collection_details],
             [self.train_data],
             batch_size=30,
-            processors=[ProcessImages(self.params, start_augmentation=[0, 99999], show_debug_img=False)]
+            processors=[ProcessImages(self.params, start_augmentation=[0, 0], show_debug_img=True)]
         )
 
         for batch_x, batch_y in train_gen:
@@ -42,8 +42,9 @@ class TestProcessors:
             for i in range(len(batch_x[0])):
                 assert len(batch_x[0]) > 0
                 img1 = batch_x[0][i]
-                heatmap = to_3channel(batch_y[0][i], List(OD_CLASS_MAPPING.items()), 0.01, True, False)
-                weights = np.stack([batch_y[1][i]]*3, axis=-1)
+                heatmap = np.array(batch_y[i][:, :, :-1]) # needed because otherwise numba makes mimimi
+                heatmap = to_3channel(heatmap, List(OD_CLASS_MAPPING.items()), 0.01, True, False)
+                weights = np.stack([batch_y[i][:, :, -1]]*3, axis=-1)
 
                 f, (ax1, ax2, ax3) = plt.subplots(1, 3)
                 ax1.imshow(cv2.cvtColor(batch_x[0][i].astype(np.uint8), cv2.COLOR_BGR2RGB))

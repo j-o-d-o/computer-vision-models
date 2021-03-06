@@ -17,6 +17,18 @@ class ProcessImages(IPreProcessor):
         self.start_augmentation = start_augmentation
         self.show_debug_img = show_debug_img
 
+    def clip_to_img(self, bbox, min_x, min_y, max_x, max_y):
+        # bbox is in [x, y, width, height] (x,y) = top left corner
+        x, y, width, height = bbox
+        mx = x + width
+        my = y + height
+        x = np.clip(x, min_x, max_x)
+        y = np.clip(y, min_y, max_y)
+        mx = np.clip(mx, min_x, max_x)
+        my = np.clip(my, min_y, max_y)
+        bbox = [x, y, mx - x, my -y]
+        return bbox
+
     def fill_heatmap(self, ground_truth, weights, cls_idx, center_x, center_y, width, height, mask_width, mask_height, peak = 1.0):
         max_dim = max(width, height)
         reduce_weight = 1.0 - ((min(20.0, max_dim) / 16.0) - 0.25)
@@ -66,7 +78,12 @@ class ProcessImages(IPreProcessor):
             bottom_center = remaining_points[max_val[1]]
             # take the top point of the found center as height in pixel
             top_center = top_points[max_val[1]]
-            center_height = bottom_center[1] - top_center[1]
+            if bottom_center[1] < min(bottom_left[1], bottom_right[1]):
+                # TODO: not a good case..., but does not all get all non convex stuff
+                center_height = box2d[3]
+                bottom_center = bottom_right
+            else:
+                center_height = bottom_center[1] - top_center[1]
 
             # convert the bottom points to offsets
             cp = np.asarray([center_x_float, center_y_float]) * float(self.params.R)
@@ -89,7 +106,11 @@ class ProcessImages(IPreProcessor):
 
         return center, loc_off, valid_l_shape, l_shape
 
-    def augment(self, img1, bbox1 = [], keypoints1 = [], img0 = None, bbox0 = [], keypoints0 = [], do_img_aug = True, do_affine_aug = False, img1_to_img0 = False):
+    def augment(self,
+        img1, bbox1 = [], keypoints1 = [], filtered_objs1 = [],
+        img0 = None, bbox0 = [], keypoints0 = [], filtered_objs0 = [],
+        do_img_aug = True, do_affine_aug = False, img1_to_img0 = False
+    ):
         if img0 is None:
             img0 = img1.copy()
 
@@ -103,25 +124,44 @@ class ProcessImages(IPreProcessor):
                 [
                     A.HorizontalFlip(p=0.4),
                     A.OneOf([
-                        A.GridDistortion(interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
-                        A.ElasticTransform(interpolation=cv2.INTER_NEAREST, alpha_affine=10, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
+                        # A.GridDistortion(interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
+                        # A.ElasticTransform(interpolation=cv2.INTER_NEAREST, alpha_affine=10, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
                         A.ShiftScaleRotate(interpolation=cv2.INTER_NEAREST, shift_limit=0.035, rotate_limit=5, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
-                        A.OpticalDistortion(interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
-                    ], p=0.5),
+                        # A.OpticalDistortion(interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0, p=1.0),
+                    ], p=1.0),
                 ],
                 additional_targets={"img0": "image"},
                 keypoint_params=A.KeypointParams(format="xy", remove_invisible=False),
-                bbox_params=A.BboxParams(format='coco', label_fields=[]), # coco format: [x-min, y-min, width, height]
+                bbox_params=A.BboxParams(format='coco', label_fields=["bbox_ids"]), # coco format: [x-min, y-min, width, height]
             )
-            transformed = afine_transform(image=img1, img0=img0, keypoints=keypoints, bboxes=bboxes)
+            transformed = afine_transform(image=img1, img0=img0, keypoints=keypoints, bboxes=bboxes, bbox_ids=np.arange(len(bboxes)))
             img1 = transformed["image"]
             img0 = transformed["img0"]
             transformed_keypoints = transformed['keypoints']
-            keypoints1 = transformed_keypoints[:len(keypoints1)]
-            keypoints0 = transformed_keypoints[len(keypoints1):]
             transformed_bboxes = transformed['bboxes']
-            bbox1 = transformed_bboxes[:len(bbox1)]
-            bbox0 = transformed_bboxes[len(bbox1):]
+            bbox_ids = transformed["bbox_ids"]
+            # it can happend that bounding boxes are removed, we have to account for that
+            # and also remove the objects and keypoints in question
+            idx_offset = len(bbox1)
+            keypoints1 = []
+            keypoints0 = []
+            bbox1 = []
+            bbox0 = []
+            tmp_filtered_objs1 = []
+            tmp_filtered_objs0 = []
+            for i, bbox_id in enumerate(bbox_ids):
+                kp_idx_start = bbox_id * 8
+                kp_idx_end = bbox_id * 8 + 8
+                if bbox_id < idx_offset:
+                    tmp_filtered_objs1.append(filtered_objs1[i])
+                    bbox1.append(transformed_bboxes[i])
+                    keypoints1 += transformed_keypoints[kp_idx_start:kp_idx_end]
+                else:
+                    tmp_filtered_objs0.append(filtered_objs0[i])
+                    bbox0.append(transformed_bboxes[i])
+                    keypoints0 += transformed_keypoints[kp_idx_start:kp_idx_end]
+            filtered_objs1 = tmp_filtered_objs1
+            filtered_objs0 = tmp_filtered_objs0
 
         # Translate img0 + bbox0/keypoints0 for single track centernet
         # --------------------------------------
@@ -162,7 +202,7 @@ class ProcessImages(IPreProcessor):
             img1 = transformed["image"]
             img0 = transformed["img0"]
 
-        return img1, bbox1, keypoints1, img0, bbox0, keypoints0
+        return img1, bbox1, keypoints1, filtered_objs1, img0, bbox0, keypoints0, filtered_objs0
 
     def process(self, raw_data, input_data, ground_truth, piped_params=None):
         # img1 = image at t+1
@@ -184,23 +224,31 @@ class ProcessImages(IPreProcessor):
         else:
             assert(not isinstance(raw_data, list) and "Why get 2 images from database if no track offset is regressed?")
             img1 = cv2.imdecode(np.frombuffer(raw_data["img"], np.uint8), cv2.IMREAD_COLOR)
+            assert(img1.shape[0] == self.params.INPUT_HEIGHT and img1.shape[1] == self.params.INPUT_WIDTH)
             objects1 = raw_data["objects"]
 
         # Get bboxes and keypoints for objects in format the augmentation needs
+        filtered_objs1 = []
         for obj in objects1:
-            bbox1.append(obj["box2d"])
-            kp = np.ones([16])
-            if obj["box3d_valid"]:
-                kp = obj["box3d"]
-            keypoints1 += list(np.array(kp).reshape(-1, 2))
+            clipped_bbox = self.clip_to_img(obj["box2d"], 0, 0, img1.shape[1], img1.shape[0])
+            area = clipped_bbox[2] * clipped_bbox[3]
+            if area > self.params.MIN_BOX_AREA:
+                filtered_objs1.append(obj)
+                bbox1.append(clipped_bbox)
+                kp = np.ones([16])
+                if obj["box3d_valid"]:
+                    kp = obj["box3d"]
+                keypoints1 += list(np.array(kp).reshape(-1, 2))
+            else:
+                ignore_areas.append(clipped_bbox)
 
         # TODO: In case of track_offset regression and only one image, transform img1 -> img0
         # TODO: Add keypoints and bboxes of img0 if available
         # TODO: Add ignore areas to augmentation
-        # TODO: Need to clip bboxes and keypoints for affine agumentation...
         do_img_aug = True if self.start_augmentation is not None and piped_params["epoch"] >= self.start_augmentation[0] else False
         do_affine_aug = True if self.start_augmentation is not None and piped_params["epoch"] >= self.start_augmentation[1] else False
-        img1, bbox1, keypoints1, img0, bbox0, keypoints0 = self.augment(img1, bbox1, keypoints1, do_img_aug=do_img_aug, do_affine_aug=do_affine_aug)
+        img1, bbox1, keypoints1, filtered_objs1, img0, bbox0, keypoints0, filtered_objs0 = \
+            self.augment(img1, bbox1, keypoints1, filtered_objs1, do_img_aug=do_img_aug, do_affine_aug=do_affine_aug)
 
         # Create empty ground_truth mask/heatmap
         mask_width = self.params.INPUT_WIDTH // self.params.R
@@ -214,9 +262,9 @@ class ProcessImages(IPreProcessor):
 
         # create ground truth heathmap for img0
         keypoints1 = list(np.asarray(keypoints1).reshape(-1, 8, 2)) # split into each object
-        assert(len(keypoints1) == len(bbox1) and "Hmm, they should be the same length, better fix that bug.")
+        assert(len(keypoints1) == len(bbox1) == len(filtered_objs1) and "Hmm, they should all be the same length, better fix that.")
 
-        for obj, bbox, keypoints in zip(objects1, bbox1, keypoints1):
+        for obj, bbox, keypoints in zip(filtered_objs1, bbox1, keypoints1):
             keypoints = keypoints if obj["box3d_valid"] else None
             center, loc_off, valid_l_shape, l_shape = self.calc_img_data(bbox, keypoints, mask_width, mask_height)
 
@@ -271,6 +319,6 @@ class ProcessImages(IPreProcessor):
 
         weights = np.where(weights == 10.0, 1.0, weights)
         input_data = [img1.astype(np.float32)]
-        ground_truth = [heatmap1, weights]
+        ground_truth = np.concatenate((heatmap1, np.expand_dims(weights, axis=-1)), axis=-1)
 
         return raw_data, input_data, ground_truth, piped_params

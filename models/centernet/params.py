@@ -25,7 +25,10 @@ class CenternetParams:
         self.INPUT_WIDTH = 640 # width of input img in [px]
         self.INPUT_HEIGHT = 256 # height of input img in [px]
         self.OFFSET_BOTTOM = 0 # offset in [px], applied before scaling, thus relative to org. img size
-        
+
+        # Box filters
+        self.MIN_BOX_AREA = 15.0 # In [px] relative to INPUT_WIDTH and INPUT_HEIGHT
+
         # Output Mask
         self.R = 2 # scale from input image to output heat map
         self.VARIANCE_ALPHA = 0.9 # variance to determine how spread out the class blobs are on the ground truth
