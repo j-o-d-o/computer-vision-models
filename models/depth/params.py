@@ -1,10 +1,9 @@
 class Params:
     def __init__(self):
         # Training
-        self.BATCH_SIZE = 10
+        self.BATCH_SIZE = 16
         self.PLANED_EPOCHS = 90
-        self.LOAD_PATH = None
-        self.LOAD_PATH_WEIGHTS = "/home/computer-vision-models/trained_models/depth_ds_2021-02-22-13943/tf_model_1/keras.h5"
+        self.LOAD_WEIGHTS = None
 
         # Input
         self.INPUT_WIDTH = 640 # width of input img in [px]

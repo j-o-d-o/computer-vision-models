@@ -10,6 +10,7 @@ from common.callbacks import SaveToStorage
 from common.utils import Logger, Config
 from models.depth import create_model, Params, ProcessImages
 from models.depth.loss import DepthLoss
+from common.utils import set_weights
 
 
 if __name__ == "__main__":
@@ -49,11 +50,7 @@ if __name__ == "__main__":
 
     # Create Model
     opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
-
-    if params.LOAD_PATH is not None:
-        model: models.Model = models.load_model(params.LOAD_PATH, compile=False)
-    else:
-        model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH, params.LOAD_PATH_WEIGHTS)
+    model: models.Model = create_model(params.INPUT_HEIGHT, params.INPUT_WIDTH)
 
     # Train model
     storage_path = "./trained_models/depth_ds_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
@@ -62,8 +59,10 @@ if __name__ == "__main__":
 
     model.compile(optimizer=opt, loss=DepthLoss(save_path=storage_path))
     model.summary()
-
     model.run_eagerly = True
+
+    if params.LOAD_WEIGHTS is not None:
+        set_weights.set_weights(params.LOAD_WEIGHTS, model)
 
     model.fit(
         train_gen,

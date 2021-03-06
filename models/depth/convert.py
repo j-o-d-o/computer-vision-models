@@ -16,8 +16,8 @@ def create_dataset(input_shape):
     
     # Create sample dataset for post training quantization
     client = MongoClient("mongodb://localhost:27017")
-    collection = client["depth"]["driving_stereo"]
-    documents = collection.find({}).limit(600).skip(2000)
+    collection = client["labels"]["driving_stereo"]
+    documents = collection.find({}).limit(600).skip(50)
 
     documents_list = list(documents)
     assert(len(documents_list) > 0)
@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     args.compile_edge_tpu = True
     args.quantize = True
-    args.model_path = "/home/computer-vision-models/trained_models/depth_ds_2021-02-22-13943/tf_model_1"
+    args.model_path = "/home/computer-vision-models/trained_models/depth_ds_2021-03-04-175455/tf_model_0/keras.h5"
 
     model = tf.keras.models.load_model(args.model_path, compile=False)
 

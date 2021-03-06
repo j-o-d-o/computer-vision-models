@@ -13,13 +13,14 @@ import time
 from pymongo import MongoClient
 from common.utils import resize_img, cmap_depth
 import pygame
+from pygame.locals import *
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Inference from tensorflow model")
     parser.add_argument("--conn", type=str, default="mongodb://localhost:27017", help='MongoDB connection string')
     parser.add_argument("--db", type=str, default="labels", help="MongoDB database")
-    parser.add_argument("--collection", type=str, default="comma10k", help="MongoDB collection")
+    parser.add_argument("--collection", type=str, default="driving_stereo", help="MongoDB collection")
     parser.add_argument("--img_width", type=int, default=640, help="Width of image, must be model input")
     parser.add_argument("--img_height", type=int, default=256, help="Width of image, must be model input")
     parser.add_argument("--offset_bottom", type=int, default=0, help="Offset from the bottom in orignal image scale")
@@ -28,13 +29,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # For debugging force a value here
-    args.use_edge_tpu = False
-    args.model_path = "/home/computer-vision-models/trained_models/depth_ds_2021-02-22-13943/tf_model_1/keras.h5" # model_quant_edgetpu.tflite"
+    args.use_edge_tpu = True
+    args.model_path = "/home/computer-vision-models/model_quant_edgetpu.tflite"
 
     client = MongoClient(args.conn)
     collection = client[args.db][args.collection]
 
-    display = pygame.display.set_mode((640*2, 256), pygame.HWSURFACE | pygame.DOUBLEBUF)
+    display = pygame.display.set_mode((640, 256*2), pygame.HWSURFACE | pygame.DOUBLEBUF)
     is_tf_lite = args.model_path[-7:] == ".tflite"
     scale = 1.0
     model = None
@@ -56,17 +57,15 @@ if __name__ == "__main__":
         output_details = interpreter.get_output_details()
         scale = output_details[0]["quantization"][0]
     else:
-        with tfmot.quantization.keras.quantize_scope():
-            custom_objects = {}
-            model: tf.keras.models.Model = tf.keras.models.load_model(args.model_path, custom_objects, compile=False)
+        print("Using Tensorflow GPU")
+        model: tf.keras.models.Model = tf.keras.models.load_model(args.model_path, compile=False)
         model.summary()
-        print("Using Tensorflow")
 
     # cap = cv2.VideoCapture('/home/computer-vision-models/tmp/train.mp4')
     # cap.set(cv2.CAP_PROP_POS_MSEC, 0)
     # while (cap.isOpened()):
     #     ret, img = cap.read()
-    documents = collection.find({}).limit(100)
+    documents = collection.find({}).limit(1000)
     documents = list(documents)
     for i in range(0, len(documents)-1):
         decoded_img = np.frombuffer(documents[i]["img"], np.uint8)
@@ -95,18 +94,25 @@ if __name__ == "__main__":
         depth_map = np.squeeze(depth_map)
         depth_map = depth_map.astype(np.float32)
         pos_mask = np.where(depth_map > 1.0, 1.0, 0.0) 
-        depth_map = (((depth_map * scale) / 22.0)**2 + 4.0) 
+        # to get the "true" depth in [m]
+        # depth_map = (((depth_map * scale) / 22.0)**2 + 4.0)
+        # or just scaling it to account for the quantization bias
+        depth_map = depth_map * scale
         depth_map *= pos_mask
         depth_map = cv2.cvtColor(cmap_depth(depth_map, vmin=4.1, vmax=130.0), cv2.COLOR_BGR2RGB)
-        img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
 
-        f, (ax1, ax2) = plt.subplots(2, 1)
-        ax1.imshow(img)
-        ax2.imshow(depth_map)
-        plt.show()
+        # show on pygame window
+        surface_input_img = pygame.surfarray.make_surface(cv2.cvtColor(img, cv2.COLOR_BGR2RGB).swapaxes(0, 1))
+        display.blit(surface_input_img, (0, 0))
+        surface_depth = pygame.surfarray.make_surface(depth_map.swapaxes(0, 1))
+        display.blit(surface_depth, (0, args.img_height))
+        pygame.display.flip()
 
-        # surface_y_true = pygame.surfarray.make_surface(img.swapaxes(0, 1))
-        # display.blit(surface_y_true, (0, 0))
-        # surface_y_pred = pygame.surfarray.make_surface(depth_map.swapaxes(0, 1))
-        # display.blit(surface_y_pred, (640, 0))
-        # pygame.display.flip()
+        wait till space is pressed
+        while True:
+            event = pygame.event.wait()
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == KEYDOWN and event.key == K_SPACE:
+                break
