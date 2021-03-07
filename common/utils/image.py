@@ -72,6 +72,7 @@ def resize_img(img: np.ndarray, goal_width: int, goal_height: int, offset_bottom
 @jit(nopython=True)
 def to_3channel(raw_mask_output, cls_items, threshold = None, use_weight = False, apply_softmax = True):
     nb_classes = len(cls_items)
+    is_binary = nb_classes == 1
     array = np.zeros((raw_mask_output.shape[0] * raw_mask_output.shape[1] * 3), dtype='uint8')
     flattened_arr = raw_mask_output.reshape((-1, raw_mask_output.shape[2]))
     for i, one_hot_encoded_arr in enumerate(flattened_arr):
@@ -80,8 +81,14 @@ def to_3channel(raw_mask_output, cls_items, threshold = None, use_weight = False
         if apply_softmax:
             arr -= np.min(arr)
             arr = arr / np.sum(arr)
-        cls_idx = np.argmax(arr)
-        cls_score = min(1.0, max(0.0, arr[cls_idx]))
+
+        if is_binary:
+            cls_score = arr[0]
+            cls_idx = 0
+        else:
+            cls_idx = np.argmax(arr)
+            cls_score = min(1.0, max(0.0, arr[cls_idx]))
+
         if threshold is None or cls_score > threshold:
             # convert index to hex value
             cls_score = cls_score if use_weight else 1.0

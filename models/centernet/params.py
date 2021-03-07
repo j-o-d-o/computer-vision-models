@@ -19,7 +19,7 @@ class CenternetParams:
         # Training
         self.BATCH_SIZE = 8
         self.PLANED_EPOCHS = 90
-        self.LOAD_WEIGHTS = None
+        self.LOAD_WEIGHTS = "/home/computer-vision-models/trained_models/centernet_nuimages_2021-03-06-19012/tf_model_2/keras.h5"
 
         # Input
         self.INPUT_WIDTH = 640 # width of input img in [px]
@@ -42,8 +42,9 @@ class CenternetParams:
         self.NB_CLASSES = nb_classes # need to calc the indices of all the regression fields
         # Loss - Regression
         self.REGRESSION_FIELDS = OrderedDict([
+            ("class", CenternetParams.RegressionField(True, nb_classes, 0.5, "Class regression")),
             ("r_offset", CenternetParams.RegressionField(True, 2, 0.2, "x, y")),
-            ("fullbox", CenternetParams.RegressionField(False, 2, 0.1, "width, height (in [px] relative to input)")),
+            ("fullbox", CenternetParams.RegressionField(True, 2, 0.1, "width, height (in [px] relative to input)")),
             ("l_shape", CenternetParams.RegressionField(False, 7, 0.1, "bottom_left_offset, bottom_center_offset, bottom_right_offset, center_height, (all points (x,y) in [px] relative to input)")),
             ("3d_info", CenternetParams.RegressionField(False, 5, [0.1, 0.2, 0.1], "radial_dist [m], orientation [rad], width, height, length [m] (all in cam coordinate system)")),
             ("track_offset", CenternetParams.RegressionField(False, 2, 0.1, "x and y offset to track at t-1 relative to input size"))
@@ -51,7 +52,7 @@ class CenternetParams:
 
     def start_idx(self, regression_key: str) -> int:
         """ Calc start index of a certain key. TODO: If havily used, cache or precalc the results here """
-        start_idx = self.NB_CLASSES
+        start_idx = 1
         found = False
         for key, field in self.REGRESSION_FIELDS.items():
             if field.active:
@@ -68,7 +69,7 @@ class CenternetParams:
         return end_idx
 
     def mask_channels(self):
-        mask_size = self.NB_CLASSES
+        mask_size = 1
         for key, field in self.REGRESSION_FIELDS.items():
             if field.active:
                 mask_size = self.end_idx(key)
@@ -82,7 +83,7 @@ class CenternetParams:
             "load_weights": self.LOAD_WEIGHTS,
             "output_fields": []
         }
-        dict_data["output_fields"].append({"object_class": {"start_idx": 0, "end_idx": self.NB_CLASSES - 1, "comment": "Object classes"}})
+        dict_data["output_fields"].append({"object_likelihood": {"start_idx": 0, "end_idx": 1, "comment": "Object classes"}})
         for key, field in self.REGRESSION_FIELDS.items():
             if field.active:
                 dict_data["output_fields"].append({key: {"start_idx": self.start_idx(key), "end_idx": self.end_idx(key), "comment": field.comment}})

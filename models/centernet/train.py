@@ -6,9 +6,9 @@ from tensorflow.python.keras.engine import data_adapter
 from datetime import datetime
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.utils import Logger, Config, set_weights
-from common.callbacks import SaveToStorage, ShowPygame
+from common.callbacks import SaveToStorage
 from data.label_spec import OD_CLASS_MAPPING
-from models.centernet import ProcessImages, CenternetParams, CenternetLoss, create_model
+from models.centernet import ProcessImages, CenternetParams, CenternetLoss, ShowPygame, create_model
 
 
 def make_custom_callbacks(keras_model, show_pygame):
@@ -28,9 +28,6 @@ if __name__ == "__main__":
     Logger.remove_file_logger()
 
     params = CenternetParams(len(OD_CLASS_MAPPING))
-    params.REGRESSION_FIELDS["fullbox"].active = True
-    params.REGRESSION_FIELDS["l_shape"].active = False
-    params.REGRESSION_FIELDS["3d_info"].active = False
 
     Config.add_config('./config.ini')
     collection_details = ("local_mongodb", "labels", "nuimages_train")
@@ -62,7 +59,7 @@ if __name__ == "__main__":
 
     model: tf.keras.models.Model = create_model(params)
     model.train_step = make_custom_callbacks(model, ShowPygame(storage_path + "/images", od_params=params))
-    model.compile(optimizer=opt, loss=loss, metrics=[loss.r_offset_loss, loss.fullbox_loss])
+    model.compile(optimizer=opt, loss=loss, metrics=[loss.obj_focal_loss, loss.class_loss, loss.r_offset_loss, loss.fullbox_loss])
 
     if params.LOAD_WEIGHTS is not None:
         set_weights.set_weights(params.LOAD_WEIGHTS, model)

@@ -17,14 +17,22 @@ def create_model(params: CenternetParams) -> tf.keras.Model:
 
     output_layer_arr = []
 
-    # Create heatmap / class output
     heatmap = Conv2D(16, (3, 3), padding="same", use_bias=False, name=f"{namescope}heatmap_conv2d")(x)
     heatmap = BatchNormalization(name=f"{namescope}heatmap_batchnorm")(heatmap)
     heatmap = ReLU(6.0)(heatmap)
-    heatmap = Conv2D(params.NB_CLASSES, (1, 1), padding="valid", activation=tf.nn.sigmoid, name=f"{namescope}heatmap")(heatmap)
+    heatmap = Conv2D(1, (1, 1), padding="valid", activation=tf.nn.sigmoid, name=f"{namescope}heatmap")(heatmap)
     output_layer_arr.append(heatmap)
 
     # All other regerssion parameters are optional, but note that the order is important here and should be as in the OrderedDict REGRESSION_FIELDS
+    if params.REGRESSION_FIELDS["class"].active:
+        # Create object class regression
+        obj_class = Conv2D(8, (3, 3), padding="same", use_bias=False, name=f"{namescope}obj_class_conv2d")(x)
+        obj_class = BatchNormalization(name=f"{namescope}obj_class_batchnorm")(obj_class)
+        obj_class = ReLU(6.0)(obj_class)
+        # softmax activation would be nice, but Edge TPU compiler does not support it for heatmaps
+        obj_class = Conv2D(params.REGRESSION_FIELDS["class"].size, (1, 1), padding="valid", activation=None, name=f"{namescope}obj_class")(obj_class)
+        output_layer_arr.append(obj_class)
+
     if params.REGRESSION_FIELDS["r_offset"].active:
         # Create location offset due to R scaling
         offset = Conv2D(8, (3, 3), padding="same", use_bias=False, name=f"{namescope}r_offset_conv2d")(x)

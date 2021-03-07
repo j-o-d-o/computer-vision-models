@@ -20,21 +20,25 @@ def process_2d_output(output_mask, roi: Roi, params: CenternetParams, min_conf_v
 
     output_shape = output_mask.shape
     # loop over every pixel per class
-    for y, x, cls_idx in np.ndindex((output_shape[0] - window_center[0], output_shape[1] - window_center[1], params.NB_CLASSES)):
+    for y, x in np.ndindex((output_shape[0] - window_center[0], output_shape[1] - window_center[1])):
         if y >= window_center[0] and x >= window_center[1]:
             # get values for the current window
             start_y = y - window_center[0]
             end_y = y + window_center[0] + 1
             start_x = x - window_center[1]
             end_x = x + window_center[1] + 1
-            window_values = output_mask[start_y:end_y, start_x:end_x, cls_idx]
+            window_values = output_mask[start_y:end_y, start_x:end_x, 0]
             # find max_idx of the window as tuple
             max_idx = np.unravel_index(np.argmax(window_values), window_size)
             curr_pixel = output_mask[y][x]
             # if maximum relates to window center and the confidence exeeds threshold, save as object
-            if max_idx == tuple(window_center) and curr_pixel[cls_idx] > min_conf_value:
+            if max_idx == tuple(window_center) and curr_pixel[0] > min_conf_value:
                 # mandatory fields, all others are optional depending on active regression fields
-                obj = {"cls_idx": cls_idx, "center": convert_back_to_roi(roi, [x * params.R, y * params.R])}
+                obj = {"cls_idx": 0, "center": convert_back_to_roi(roi, [x * params.R, y * params.R])}
+                
+                if params.REGRESSION_FIELDS["class"].active:
+                    class_conf_arr = curr_pixel[params.start_idx("class"):params.end_idx("class")]
+                    obj["cls_idx"] = np.argmax(class_conf_arr)
 
                 if params.REGRESSION_FIELDS["r_offset"].active:
                     r_offset = curr_pixel[params.start_idx("r_offset"):params.end_idx("r_offset")]

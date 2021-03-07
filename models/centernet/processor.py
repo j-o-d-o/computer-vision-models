@@ -17,7 +17,7 @@ import albumentations as A
 @jit(nopython=True)
 def fill_heatmap(
         ground_truth: np.ndarray, alpha: float, R: float, weights: np.ndarray,
-        cls_idx: int, center_x:int, center_y:int, width:float, height:float,
+        center_x:int, center_y:int, width:float, height:float,
         mask_width:int, mask_height:int, peak:float = 1.0
     ):
     max_dim = max(width, height)
@@ -34,7 +34,7 @@ def fill_heatmap(
             weight_width = math.pow((x - center_x), 2) / (2 * var_width)
             weight_height = math.pow((y - center_y), 2) / (2 * var_height)
             var_weight = math.exp(-(weight_width + weight_height))
-            ground_truth[y][x][cls_idx] = max(var_weight * peak, ground_truth[y][x][cls_idx])
+            ground_truth[y][x][0] = max(var_weight * peak, ground_truth[y][x][0])
             weights[y][x] = min(weights[y][x], 1.0 - (reduce_weight * var_weight))
 
 class ProcessImages(IPreProcessor):
@@ -265,7 +265,7 @@ class ProcessImages(IPreProcessor):
         mask_height = self.params.INPUT_HEIGHT // self.params.R
         mask_channels = self.params.mask_channels()
         heatmap1 = np.zeros((mask_height, mask_width, mask_channels), dtype=np.float32)
-        weights = np.ones((mask_height, mask_width), dtype=np.float32) * 10.0
+        weights = np.ones((mask_height, mask_width), dtype=np.float32)
 
         if self.show_debug_img:
             debug_img0 = img0.copy().astype(np.uint8)
@@ -286,6 +286,8 @@ class ProcessImages(IPreProcessor):
             else:
                 # fill ground truth mask for all active fields
                 gt_center = heatmap1[center[1]][center[0]][:]
+                if self.params.REGRESSION_FIELDS["class"].active:
+                    gt_center[self.params.start_idx("class") + OD_CLASS_IDX[obj["obj_class"]]] = 1.0
                 if self.params.REGRESSION_FIELDS["r_offset"].active:
                     gt_center[self.params.start_idx("r_offset"):self.params.end_idx("r_offset")] = loc_off
                 if self.params.REGRESSION_FIELDS["fullbox"].active:
@@ -297,7 +299,7 @@ class ProcessImages(IPreProcessor):
                     gt_center[self.params.start_idx("3d_info"):self.params.end_idx("3d_info")] = [radial_dist, obj["orientation"], obj["width"], obj["height"], obj["length"]]
 
                 # create the heatmap with a gausian distribution for lower loss in the area of each object
-                fill_heatmap(heatmap1, self.params.VARIANCE_ALPHA, self.params.R, weights, OD_CLASS_IDX[obj["obj_class"]], center[0], center[1], width, height, mask_width, mask_height)
+                fill_heatmap(heatmap1, self.params.VARIANCE_ALPHA, self.params.R, weights, center[0], center[1], width, height, mask_width, mask_height)
 
                 if self.show_debug_img:
                     # center
@@ -327,7 +329,7 @@ class ProcessImages(IPreProcessor):
             ax1.imshow(cv2.cvtColor(debug_img0, cv2.COLOR_BGR2RGB))
             plt.show()
 
-        weights = np.where(weights == 10.0, 1.0, weights)
+        # weights = np.where(weights == dummy_weight_value, 1.0, weights)
         input_data = [img1.astype(np.float32)]
         ground_truth = np.concatenate((heatmap1, np.expand_dims(weights, axis=-1)), axis=-1)
 

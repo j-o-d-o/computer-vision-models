@@ -9,6 +9,7 @@ class TestLoss():
     def setup_method(self):
         nb_classes = 3
         self.params = CenternetParams(nb_classes)
+        self.params.REGRESSION_FIELDS["class"].active = True
         self.params.REGRESSION_FIELDS["r_offset"].active = True
         self.params.REGRESSION_FIELDS["fullbox"].active = True
         self.params.REGRESSION_FIELDS["l_shape"].active = True
@@ -19,7 +20,7 @@ class TestLoss():
         self.cp_y = 1
         self.cls_idx = 1
         self.obj_data = {
-            "r_offset": [0.2, 0.3], "width_px": 2.2, "height_px": 1.1,
+            "class": [0.0, 1.0, 0.0], "r_offset": [0.2, 0.3], "width_px": 2.2, "height_px": 1.1,
             "bottom_left_off": [-2.0, 1.5], "bottom_right_off": [2.1, 1.2], "bottom_center_off": [0.5, 1.7], "center_height": 1.6,
             "radial_dist": 23.0, "orientation": 0.12, "obj_width": 1.8, "obj_height": 1.1, "obj_length": 2.9
         }
@@ -31,18 +32,18 @@ class TestLoss():
         self.ground_truth = np.zeros((self.mask_height, self.mask_width, self.channels + 1))
         self.ground_truth[:, :, -1] = 1.0 # set weights
         # class with a bit of distribution to the right keypoint
-        self.ground_truth[self.cp_y    ][self.cp_x][self.cls_idx] = 1.0
-        self.ground_truth[self.cp_y + 1][self.cp_x][self.cls_idx] = 0.8
+        self.ground_truth[self.cp_y    ][self.cp_x][0] = 1.0
+        self.ground_truth[self.cp_y + 1][self.cp_x][0] = 0.8
         # regression params
-        self.ground_truth[self.cp_y][self.cp_x][nb_classes:] = [
-            *self.obj_data["r_offset"], self.obj_data["width_px"], self.obj_data["height_px"],
+        self.ground_truth[self.cp_y][self.cp_x][1:] = [
+            *self.obj_data["class"], *self.obj_data["r_offset"], self.obj_data["width_px"], self.obj_data["height_px"],
             *self.obj_data["bottom_left_off"], *self.obj_data["bottom_right_off"], *self.obj_data["bottom_center_off"], self.obj_data["center_height"],
             self.obj_data["radial_dist"], self.obj_data["orientation"], self.obj_data["obj_width"], self.obj_data["obj_height"], self.obj_data["obj_length"], 1.0
         ]
 
         # Create perfect prediction
         self.perfect_prediction = self.ground_truth.copy()
-        self.perfect_prediction[self.cp_y + 1][self.cp_x][self.cls_idx] = 0.0
+        self.perfect_prediction[self.cp_y + 1][self.cp_x][0] = 0.0
 
         # Create loss class
         self.loss = CenternetLoss(self.params)
@@ -51,20 +52,32 @@ class TestLoss():
         no_loss = self.loss(np.asarray([self.ground_truth]), np.asarray([self.perfect_prediction])).numpy()
         assert no_loss < 0.0001
 
+    def test_object_loss(self):
+        # Test object loss: peak not quite at 1.0
+        prediction = self.perfect_prediction.copy()
+        prediction[self.cp_y][self.cp_x][0] = 0.8
+        obj_loss = self.loss(np.asarray([self.ground_truth]), np.asarray([prediction])).numpy()
+        assert obj_loss < 0.01
+        # Test obj loss: one off peak vs random wrong peak
+        prediction = self.perfect_prediction.copy()
+        prediction[self.cp_y + 1][self.cp_x][0] = 1.0
+        one_off_obj_loss = self.loss(np.asarray([self.ground_truth]), np.asarray([prediction])).numpy()
+        prediction[self.cp_y + 1][self.cp_x][0] = 0.0 # reset previous peak
+        prediction[self.cp_y + 5][self.cp_x][0] = 1.0
+        wrong_peak_ojb_loss = self.loss(np.asarray([self.ground_truth]), np.asarray([prediction])).numpy()
+        assert one_off_obj_loss < wrong_peak_ojb_loss
+
     def test_class_loss(self):
         # Test class loss: peak not quite at 1.0
         prediction = self.perfect_prediction.copy()
-        prediction[self.cp_y][self.cp_x][self.cls_idx] = 0.8
-        class_loss = self.loss(np.asarray([self.ground_truth]), np.asarray([prediction])).numpy()
+        prediction[self.cp_y][self.cp_x][1 + self.cls_idx] = 0.8
+        class_loss = self.loss.class_loss(tf.cast(np.asarray([self.ground_truth]), tf.float32), tf.cast(np.asarray([prediction]), tf.float32))
         assert class_loss < 0.01
         # Test class loss: one off peak vs random wrong peak
         prediction = self.perfect_prediction.copy()
-        prediction[self.cp_y + 1][self.cp_x][self.cls_idx] = 1.0
-        one_off_class_loss = self.loss(np.asarray([self.ground_truth]), np.asarray([prediction])).numpy()
-        prediction[self.cp_y + 1][self.cp_x][self.cls_idx] = 0.0 # reset previous peak
-        prediction[self.cp_y + 5][self.cp_x][self.cls_idx] = 1.0
-        wrong_peak_class_loss = self.loss(np.asarray([self.ground_truth]), np.asarray([prediction])).numpy()
-        assert one_off_class_loss < wrong_peak_class_loss
+        prediction[self.cp_y][self.cp_x][1 + self.cls_idx + 1] = 1.0
+        class_loss = self.loss.class_loss(tf.cast(np.asarray([self.ground_truth]), tf.float32), tf.cast(np.asarray([prediction]), tf.float32))
+        assert class_loss > 0.5
 
     def test_fullbox_loss(self):
         # Test size loss: width

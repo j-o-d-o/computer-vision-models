@@ -9,7 +9,9 @@ class CenternetLoss(Loss):
         self.params = params
 
         # pre calc position of data within the y_true and y_pred
-        self.class_pos = [0, params.NB_CLASSES]
+        self.obj_pos = [0, 1]
+        if params.REGRESSION_FIELDS["class"].active:
+            self.class_pos = [params.start_idx("class"), params.end_idx("class")]
         if params.REGRESSION_FIELDS["r_offset"].active:
             self.r_offset_pos = [params.start_idx("r_offset"), params.end_idx("r_offset")]
         if params.REGRESSION_FIELDS["fullbox"].active:
@@ -26,31 +28,41 @@ class CenternetLoss(Loss):
             self.orientation_pos = start_idx + 1
             self.obj_dims_pos = [start_idx + 2, start_idx + 5]
 
-    def class_focal_loss(self, y_true, y_pred, weights):
-        y_true_class = y_true[:, :, :, :self.class_pos[1]]
-        y_pred_class = y_pred[:, :, :, :self.class_pos[1]]
+    def obj_focal_loss(self, y_true, y_pred, weights = None):
+        y_true_obj = y_true[:, :, :, :self.obj_pos[1]]
+        y_pred_obj = y_pred[:, :, :, :self.obj_pos[1]]
 
-        pos_mask = tf.cast(tf.equal(y_true_class, 1.0), tf.float32)
-        neg_mask = tf.cast(tf.less(y_true_class, 1.0), tf.float32)
+        pos_mask = tf.cast(tf.equal(y_true_obj, 1.0), tf.float32)
+        neg_mask = tf.cast(tf.less(y_true_obj, 1.0), tf.float32)
 
         pos_loss = (
             -pos_mask
-            * tf.math.pow(1.0 - y_pred_class, self.params.FOCAL_LOSS_ALPHA)
-            * tf.math.log(tf.clip_by_value(y_pred_class, 0.01, 0.99))
+            * tf.math.pow(1.0 - y_pred_obj, self.params.FOCAL_LOSS_ALPHA)
+            * tf.math.log(tf.clip_by_value(y_pred_obj, 0.01, 0.99))
         )
         neg_loss = (
             -neg_mask
-            * tf.math.pow(1.0 - y_true_class, self.params.FOCAL_LOSS_BETA)
-            * tf.math.pow(y_pred_class, self.params.FOCAL_LOSS_ALPHA)
-            * tf.math.log(tf.clip_by_value(1.0 - y_pred_class, 0.01, 0.99))
+            * tf.math.pow(1.0 - y_true_obj, self.params.FOCAL_LOSS_BETA)
+            * tf.math.pow(y_pred_obj, self.params.FOCAL_LOSS_ALPHA)
+            * tf.math.log(tf.clip_by_value(1.0 - y_pred_obj, 0.01, 0.99))
         )
 
         n = tf.reduce_sum(pos_mask)
-        stacked_weights = tf.stack([weights]*pos_loss.shape[-1], axis=-1)
-        pos_loss_val = tf.reduce_sum(pos_loss * stacked_weights)
-        neg_loss_val = tf.reduce_sum(neg_loss * stacked_weights)
+        if weights is not None:
+            stacked_weights = tf.stack([weights]*pos_loss.shape[-1], axis=-1)
+            pos_loss_val = tf.reduce_sum(pos_loss * stacked_weights)
+            neg_loss_val = tf.reduce_sum(neg_loss * stacked_weights)
+        else:
+            pos_loss_val = tf.reduce_sum(pos_loss)
+            neg_loss_val = tf.reduce_sum(neg_loss)
 
         loss_val = tf.cond(tf.greater(n, 0), lambda: (pos_loss_val + neg_loss_val) / n, lambda: neg_loss_val)
+        return loss_val
+
+    def class_loss(self, y_true, y_pred):
+        y_true_feat = y_true[:, :, :, self.class_pos[0]:self.class_pos[1]]
+        y_pred_feat = y_pred[:, :, :, self.class_pos[0]:self.class_pos[1]]
+        loss_val = self.calc_loss(y_true, y_true_feat, y_pred_feat, loss_type="cross_entropy")
         return loss_val
 
     def r_offset_loss(self, y_true, y_pred):
@@ -93,9 +105,9 @@ class CenternetLoss(Loss):
         return loss_val
 
     def calc_loss(self, y_true, y_true_feat, y_pred_feat, loss_type: str = "mse"):
-        y_true_class = y_true[:, :, :, :self.class_pos[1]]
+        y_true_obj = y_true[:, :, :, :self.obj_pos[1]]
 
-        pos_mask = tf.cast(tf.equal(y_true_class, 1.0), tf.float32)
+        pos_mask = tf.cast(tf.equal(y_true_obj, 1.0), tf.float32)
         pos_mask = tf.reduce_max(pos_mask, axis=-1, keepdims=True)
         pos_mask_feat = tf.broadcast_to(pos_mask, tf.shape(y_true_feat))
         nb_objects = tf.reduce_sum(pos_mask)
@@ -106,9 +118,14 @@ class CenternetLoss(Loss):
             loss_mask = pos_mask_feat * (y_true_feat - y_pred_feat)
         elif loss_type == "mape":
             loss_mask = pos_mask_feat * ((y_true_feat - y_pred_feat) / tf.maximum(tf.math.abs(y_true_feat), 1.0))
+        elif loss_type == "cross_entropy":
+            loss_mask = tf.keras.losses.categorical_crossentropy(y_true_feat, y_pred_feat, from_logits=True)
+            # for all the true pixels on the heatmap that have no peak, categorical cross entropy returns nan, take care of it here:
+            loss_mask = tf.math.multiply_no_nan(loss_mask, tf.squeeze(pos_mask, axis=-1))
         else:
             assert(False)
         loss_mask = tf.math.abs(loss_mask)
+        tf.math.reduce_sum
         loss_val = tf.reduce_sum(loss_mask)
         loss_val = tf.cond(tf.greater(nb_objects, 0), lambda: loss_val / nb_objects, lambda: loss_val)
         return loss_val
@@ -120,8 +137,10 @@ class CenternetLoss(Loss):
         weights = y_true[:, :, :, -1]
         y_true = y_true[:, :, :, :-1]
 
-        total_loss = self.class_focal_loss(y_true, y_pred, weights)
+        total_loss = self.obj_focal_loss(y_true, y_pred, weights)
 
+        if self.params.REGRESSION_FIELDS["class"].active:
+            total_loss += self.class_loss(y_true, y_pred) * self.params.REGRESSION_FIELDS["class"].loss_weight
         if self.params.REGRESSION_FIELDS["r_offset"].active:
             total_loss += self.r_offset_loss(y_true, y_pred) * self.params.REGRESSION_FIELDS["r_offset"].loss_weight
         if self.params.REGRESSION_FIELDS["fullbox"].active:
