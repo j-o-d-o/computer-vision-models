@@ -1,6 +1,7 @@
 from models.centernet.params import CenternetParams
 from models.semseg.params import SemsegParams
 from models.depth.params import Params as DepthParams
+from data.label_spec import SEMSEG_CLASS_MAPPING
 
 
 class MultitaskParams():
@@ -16,6 +17,7 @@ class MultitaskParams():
 
         self.cn_params = CenternetParams(nb_classes)
         self.cn_params.LOAD_WEIGHTS = "/home/computer-vision-models/centernet_keras.h5"
+        self.cn_params.CHANNELS = 3 + len(SEMSEG_CLASS_MAPPING.items()) + 1
         self.cn_params.REGRESSION_FIELDS["class"].active = True
         self.cn_params.REGRESSION_FIELDS["r_offset"].active = True
         self.cn_params.REGRESSION_FIELDS["fullbox"].active = True

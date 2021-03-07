@@ -24,6 +24,7 @@ class CenternetParams:
         # Input
         self.INPUT_WIDTH = 640 # width of input img in [px]
         self.INPUT_HEIGHT = 256 # height of input img in [px]
+        self.CHANNELS = 3 # can be adapted for tracking or multitask
         self.OFFSET_BOTTOM = 0 # offset in [px], applied before scaling, thus relative to org. img size
 
         # Box filters

@@ -80,7 +80,7 @@ def create_output_layer(x, params, namescope):
 
 def create_model(params: CenternetParams) -> tf.keras.Model:
     namescope = "centernet/"
-    inp = Input(shape=(params.INPUT_HEIGHT, params.INPUT_WIDTH, 3))
+    inp = Input(shape=(params.INPUT_HEIGHT, params.INPUT_WIDTH, params.CHANNELS))
     inp_rescaled = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(inp)
 
     x, _ = encoder(8, inp_rescaled, output_scaled_down=True, namescope=f"{namescope}")

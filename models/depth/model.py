@@ -13,8 +13,9 @@ from common.layers import encoder, upsample_block, bottle_neck_block
 def create_model(input_height: int, input_width: int) -> tf.keras.Model:
     inp_t0 = Input(shape=(input_height, input_width, 3))
     inp_t0_rescaled = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(inp_t0)
+    namescope = "depth/"
 
-    x0, _ = encoder(4, inp_t0_rescaled, output_scaled_down=True, namescope="depth/")
+    x0, _ = encoder(4, inp_t0_rescaled, output_scaled_down=True, namescope=f"{namescope}")
     x0 = Conv2D(6, (3, 3), use_bias=False, padding="same", name=f"{namescope}depthhead_conv2d")(x0)
     x0 = BatchNormalization(name=f"{namescope}depthhead_batchnorm")(x0)
     x0 = ReLU()(x0)
