@@ -16,7 +16,7 @@ def create_dataset(input_shape):
     
     # Create sample dataset for post training quantization
     client = MongoClient("mongodb://localhost:27017")
-    collection = client["labels"]["comma10k"]
+    collection = client["labels"]["nuscenes_train"]
     documents = collection.find({}).limit(30)
 
     documents_list = list(documents)

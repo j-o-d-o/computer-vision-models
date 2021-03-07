@@ -9,23 +9,6 @@ from common.utils import cmap_depth
 
 
 class DepthLoss(Loss):
-    def __init__(self, reduction=losses_utils.ReductionV2.AUTO, name=None, save_path=None):
-        super().__init__(reduction=reduction, name=name)
-        self.display = pygame.display.set_mode((640*2, 256), pygame.HWSURFACE | pygame.DOUBLEBUF)
-        self.save_path = save_path
-        self.step_counter = 0
-
-    def _show_depthmaps(self, y_true, y_pred):
-        surface_y_true = pygame.surfarray.make_surface(cmap_depth(y_true[0], vmin=0.1, vmax=255.0).swapaxes(0, 1))
-        self.display.blit(surface_y_true, (0, 0))
-        surface_y_pred = pygame.surfarray.make_surface(cmap_depth(y_pred[0], vmin=0.1, vmax=255.0).swapaxes(0, 1))
-        self.display.blit(surface_y_pred, (640, 0))
-
-        if self.step_counter % 1000 == 0:
-            pygame.image.save(self.display, f"{self.save_path}/train_result_{self.step_counter}.png")
-
-        pygame.display.flip()
-
     @staticmethod
     def calc(y_true, y_pred):
         pos_mask = tf.cast(tf.greater(y_true, 0.1), tf.float32)
@@ -43,8 +26,20 @@ class DepthLoss(Loss):
 
     def call(self, y_true, y_pred):
         y_pred = tf.squeeze(y_pred, axis=-1)
-
-        self._show_depthmaps(y_true, y_pred)
-        self.step_counter += 1
-
         return self.calc(y_true, y_pred)
+
+
+# TODO: Do this like in all other models by implementing a make_train_function() on the Model
+# def _show_depthmaps(self, y_true, y_pred):
+#     surface_y_true = pygame.surfarray.make_surface(cmap_depth(y_true[0], vmin=0.1, vmax=255.0).swapaxes(0, 1))
+#     self.display.blit(surface_y_true, (0, 0))
+#     surface_y_pred = pygame.surfarray.make_surface(cmap_depth(y_pred[0], vmin=0.1, vmax=255.0).swapaxes(0, 1))
+#     self.display.blit(surface_y_pred, (640, 0))
+
+#     if self.step_counter % 1000 == 0:
+#         pygame.image.save(self.display, f"{self.save_path}/train_result_{self.step_counter}.png")
+
+#     pygame.display.flip()
+
+# self._show_depthmaps(y_true, y_pred)
+# self.step_counter += 1

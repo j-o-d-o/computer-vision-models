@@ -1,17 +1,30 @@
-"""
-Hold all the specific parameters in this python class
-"""
+from models.centernet.params import CenternetParams
+from models.semseg.params import SemsegParams
+from models.depth.params import Params as DepthParams
 
-class MultitaskParams:
-    def __init__(self):
-        # Training
-        self.BATCH_SIZE = 6
-        self.PLANED_EPOCHS = 90
-        self.LOAD_PATH = None
-        self.LOAD_WEIGHTS_SEMSEG = None # "/home/computer-vision-models/trained_models/semseg_comma10k_augment_2021-02-23-134354/tf_model_44/keras.h5"
-        self.LOAD_WEIGHTS_DEPTH = None # ""
 
-        # Input
-        self.INPUT_WIDTH = 640 # width of input img in [px]
-        self.INPUT_HEIGHT = 256 # height of input img in [px]
-        self.OFFSET_BOTTOM = 0 # offset in [px], applied before scaling, thus relative to org. img s
+class MultitaskParams():
+    def __init__(self, nb_classes):
+        self.INPUT_WIDTH = 640
+        self.INPUT_HEIGHT = 256
+        self.MASK_WIDTH = (self.INPUT_WIDTH // 2) # width of the output mask
+        self.MASK_HEIGHT = (self.INPUT_HEIGHT // 2) # height of the output mask
+
+        self.PLANED_EPOCHS = 100
+        self.BATCH_SIZE = 4
+        self.LOAD_WEIGHTS = "/home/computer-vision-models/depth_keras.h5"
+
+        self.cn_params = CenternetParams(nb_classes)
+        self.cn_params.LOAD_WEIGHTS = "/home/computer-vision-models/centernet_keras.h5"
+        self.cn_params.REGRESSION_FIELDS["class"].active = True
+        self.cn_params.REGRESSION_FIELDS["r_offset"].active = True
+        self.cn_params.REGRESSION_FIELDS["fullbox"].active = True
+        self.cn_params.REGRESSION_FIELDS["l_shape"].active = False
+        self.cn_params.REGRESSION_FIELDS["3d_info"].active = False
+        self.cn_params.REGRESSION_FIELDS["track_offset"].active = False
+
+        self.semseg_params = SemsegParams()
+        self.semseg_params.LOAD_WEIGHTS = "/home/computer-vision-models/semseg_keras.h5"
+
+        self.depth_params = DepthParams()
+        self.depth_params.LOAD_WEIGHTS = "/home/computer-vision-models/depth_keras.h5"

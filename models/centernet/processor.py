@@ -230,7 +230,7 @@ class ProcessImages(IPreProcessor):
 
         if self.params.REGRESSION_FIELDS["track_offset"].active:
             # TODO: Do center tracker part thingy
-            pass
+            assert(False)
         else:
             assert(not isinstance(raw_data, list) and "Why get 2 images from database if no track offset is regressed?")
             img1 = cv2.imdecode(np.frombuffer(raw_data["img"], np.uint8), cv2.IMREAD_COLOR)

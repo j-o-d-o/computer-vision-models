@@ -53,7 +53,7 @@ if __name__ == "__main__":
     )
 
     # Create Model
-    storage_path = storage_path = "./trained_models/centernet_nuimages_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
+    storage_path = "./trained_models/centernet_nuimages_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     opt = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07) 
     loss = CenternetLoss(params)
 

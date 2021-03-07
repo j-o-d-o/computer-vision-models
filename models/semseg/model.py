@@ -59,7 +59,6 @@ def create_model(input_height: int, input_width: int) -> tf.keras.Model:
     x = bottle_neck_block(f"{namescope}downsample_13/", x, filters[6], downsample = True)
     fms.append(x)
 
-
     # Upsample
     # ----------------------------
     for i in range(len(fms) - 2, -1, -1):

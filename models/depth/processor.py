@@ -58,11 +58,13 @@ class ProcessImages(IPreProcessor):
         # Add ground_truth mask
         mask_t1 = cv2.imdecode(np.frombuffer(raw_data["depth"], np.uint8), cv2.IMREAD_ANYDEPTH)
         mask_t1, _ = resize_img(mask_t1, self.params.INPUT_WIDTH, self.params.INPUT_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
-        
+
         # agument
         if self.do_augmentation:
             img_t0, mask_t1 = self.augment(img_t0, mask_t1)
         img_t0 = img_t0.astype(np.float32)
+
+        mask_t1, _ = resize_img(mask_t1, self.params.MASK_WIDTH, self.params.MASK_HEIGHT, offset_bottom=self.params.OFFSET_BOTTOM, interpolation=cv2.INTER_NEAREST)
 
         # adjust mask values
         mask_t1 = mask_t1.astype(np.float32)

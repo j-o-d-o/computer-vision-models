@@ -8,13 +8,7 @@ from common.utils import tflite_convert
 from common.layers import bottle_neck_block, upsample_block, encoder
 
 
-def create_model(params: CenternetParams) -> tf.keras.Model:
-    namescope = "centernet/"
-    inp = Input(shape=(params.INPUT_HEIGHT, params.INPUT_WIDTH, 3))
-    inp_rescaled = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(inp)
-
-    x, _ = encoder(8, inp_rescaled, output_scaled_down=True, namescope=f"{namescope}")
-
+def create_output_layer(x, params, namescope):
     output_layer_arr = []
 
     heatmap = Conv2D(16, (3, 3), padding="same", use_bias=False, name=f"{namescope}heatmap_conv2d")(x)
@@ -81,6 +75,16 @@ def create_model(params: CenternetParams) -> tf.keras.Model:
 
     # Concatenate output
     output_layer = Concatenate(axis=3, name="centernet/out")(output_layer_arr)
+    return output_layer
+
+
+def create_model(params: CenternetParams) -> tf.keras.Model:
+    namescope = "centernet/"
+    inp = Input(shape=(params.INPUT_HEIGHT, params.INPUT_WIDTH, 3))
+    inp_rescaled = tf.keras.layers.experimental.preprocessing.Rescaling(scale=255.0, offset=0)(inp)
+
+    x, _ = encoder(8, inp_rescaled, output_scaled_down=True, namescope=f"{namescope}")
+    output_layer = create_output_layer(x, params, namescope)
 
     # Create Model
     model = Model(inputs=[inp], outputs=output_layer, name="centernet")

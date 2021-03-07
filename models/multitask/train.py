@@ -2,33 +2,46 @@ import tensorflow as tf
 tf.config.experimental.set_memory_growth(tf.config.experimental.list_physical_devices('GPU')[0], True)
 tf.config.optimizer.set_jit(True)
 
-import tensorflow_model_optimization as tfmot
+from tensorflow.python.keras.engine import data_adapter
 from tensorflow.keras import optimizers, models, metrics
 from datetime import datetime
 from common.data_reader.mongodb import load_ids, MongoDBGenerator
 from common.callbacks import SaveToStorage
-from common.utils import Logger, Config
-from models.multitask import create_model, MultitaskParams, ProcessImages, MultitaskLoss, 
+from common.utils import Logger, Config, set_weights
+from data.label_spec import OD_CLASS_MAPPING
+from models.multitask import create_model, MultitaskParams, ProcessImages, MultitaskLoss, ShowPygame
 
+
+def make_custom_callbacks(keras_model, show_pygame):
+    original_train_step = keras_model.train_step
+    def call_custom_callbacks(original_data):
+        data = data_adapter.expand_1d(original_data)
+        x, y_true, w = data_adapter.unpack_x_y_sample_weight(data)
+        y_pred = keras_model(x, training=True)
+        result = original_train_step(original_data)
+        # custom stuff called during training
+        show_pygame.show(x, y_true, y_pred)
+        return result
+    return call_custom_callbacks
 
 if __name__ == "__main__":
     Logger.init()
     Logger.remove_file_logger()
 
-    params = MultitaskParams()
+    params = MultitaskParams(len(OD_CLASS_MAPPING.items()))
 
     Config.add_config('./config.ini')
     con = ("local_mongodb", "labels", "nuscenes_train")
 
     td, vd = load_ids(
         con,
-        data_split=(80, 20),
+        data_split=(85, 15),
         shuffle_data=False
     )
 
-    train_data = [td_semseg, td_depth]
-    val_data = [vd_semseg, vd_depth]
-    collection_details = [con_semseg, con_depth]
+    train_data = [td]
+    val_data = [vd]
+    collection_details = [con]
 
     processors = [ProcessImages(params)]
     train_gen = MongoDBGenerator(
@@ -47,25 +60,27 @@ if __name__ == "__main__":
     )
 
     # Create Model
-    storage_path = "./trained_models/multitask_depth_ds_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
+    storage_path = "./trained_models/multitask_nuscenes_" + datetime.now().strftime("%Y-%m-%d-%H%-M%-S")
     opt = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
-    loss = MultitaskLoss()
+    loss = MultitaskLoss(params)
 
-    if params.LOAD_PATH is not None:
-        with tfmot.quantization.keras.quantize_scope():
-            custom_objects = {"SemsegLoss": loss}
-            model: models.Model = models.load_model(params.LOAD_PATH, custom_objects=custom_objects, compile=False)
-    else:
-        model: models.Model = create_model(
-            params.INPUT_HEIGHT,
-            params.INPUT_WIDTH,
-            path_semseg=params.LOAD_WEIGHTS_SEMSEG,
-            path_depth=params.LOAD_WEIGHTS_DEPTH)
+    model: models.Model = create_model(params)
+    model.train_step = make_custom_callbacks(model, ShowPygame(storage_path + "/images", params))
+    model.compile(optimizer=opt, loss=loss, metrics=[
+        loss.calc_semseg, loss.calc_depth, loss.calc_centernet,
+        loss.cn_loss.obj_focal_loss, loss.cn_loss.class_loss, loss.cn_loss.r_offset_loss, loss.cn_loss.fullbox_loss
+    ])
 
-    model.init_save_path(storage_path)
-    model.compile(optimizer=opt, custom_loss=loss)
+    if params.LOAD_WEIGHTS is not None:
+        set_weights.set_weights(params.depth_params.LOAD_WEIGHTS, model, force_resize=True)
+        if params.semseg_params.LOAD_WEIGHTS is not None:
+            set_weights.set_weights(params.semseg_params.LOAD_WEIGHTS, model, custom_objects={"SemsegModel": tf.keras.Model}, force_resize=False)
+        if params.depth_params.LOAD_WEIGHTS is not None:
+            set_weights.set_weights(params.depth_params.LOAD_WEIGHTS, model, force_resize=False)
+        if params.cn_params.LOAD_WEIGHTS is not None:
+            set_weights.set_weights(params.cn_params.LOAD_WEIGHTS, model, force_resize=False)
+    
     model.summary()
-    # for debugging custom loss or layers, set to True
     model.run_eagerly = True
 
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=storage_path + "/tensorboard", histogram_freq=1)
@@ -79,5 +94,4 @@ if __name__ == "__main__":
         callbacks=callbacks,
         initial_epoch=0,
         workers=3,
-        # use_multiprocessing=True
     )
